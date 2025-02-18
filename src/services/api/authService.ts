@@ -39,6 +39,7 @@ export function getCookie(name: string): string | null {
 function deleteCookie(name: string) {
   document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 }
+let refreshTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Loggar in användaren genom att anropa backend.
@@ -82,11 +83,31 @@ export const loginUser = async (
  */
 export const logoutUser = async (): Promise<void> => {
   try {
-    await axios.post(`${REVOKE_REFRESH_TOKEN_URL}`, null, {
-      withCredentials: true,
-    });
+    // 1. Hämta JWT från t.ex. din cookie eller var du lagrar accessToken:
+    const token = getCookie("accessToken");
+
+    // 2. Skicka med en Authorization-header
+    await api.post(
+      REVOKE_REFRESH_TOKEN_URL,
+      {}, // Skicka eventuellt en tom body
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Viktigt!
+          "Content-Type": "application/json", // Eller 'text/plain'
+        },
+      }
+    );
+
+    // 3. Rensa lokala saker
     deleteCookie("accessToken");
     localStorage.removeItem("refreshTokenExpiryTime");
+
+    if (refreshTimeoutId) {
+      clearTimeout(refreshTimeoutId);
+      refreshTimeoutId = null;
+    }
+
+    console.log("Logout success");
   } catch (error) {
     console.error("Logout failed:", error);
     throw new Error("Failed to log out. Please try again.");
@@ -117,6 +138,12 @@ export function scheduleTokenRefresh() {
   const buffer = 2 * 60 * 1000; // 2 minuter i millisekunder
   const timeout = expTimeMs - nowMs - buffer;
 
+  // Rensa ev. tidigare timeout
+  if (refreshTimeoutId) {
+    clearTimeout(refreshTimeoutId);
+    refreshTimeoutId = null;
+  }
+
   if (timeout <= 0) {
     // Om tokenet är nära utgång, kalla refresh direkt
     refreshTokenProactively();
@@ -124,7 +151,7 @@ export function scheduleTokenRefresh() {
     console.log(
       `Schemalägger token refresh om ${Math.floor(timeout / 1000)} sekunder.`
     );
-    setTimeout(refreshTokenProactively, timeout);
+    refreshTimeoutId = setTimeout(refreshTokenProactively, timeout);
   }
 }
 

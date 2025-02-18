@@ -10,7 +10,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { useLogin } from "@/hooks/useLogin";
+import { useAuth } from "@/services/api/authContext";
+import { useNavigate } from "react-router-dom";
 
 export function LoginForm({
   className,
@@ -18,11 +19,29 @@ export function LoginForm({
 }: React.ComponentPropsWithoutRef<"div">) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { login, error, loading } = useLogin();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login(email, password);
+    setLoading(true);
+    setError(null);
+
+    try {
+      await login(email, password);
+      setLoading(false);
+      navigate("/home");
+    } catch (err) {
+      setLoading(false);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unexpected error occurred");
+      }
+    }
   };
 
   return (
