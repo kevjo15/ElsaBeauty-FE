@@ -52,7 +52,7 @@ export const loginUser = async (
   password: string
 ): Promise<void> => {
   try {
-    const response = await axios.post(
+    const response = await api.post(
       LOGIN_URL, // t.ex. `${API_BASE_URL}/User/login`
       { email, password },
       { withCredentials: true }
