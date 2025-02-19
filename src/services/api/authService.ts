@@ -189,6 +189,6 @@ async function refreshTokenProactively() {
     scheduleTokenRefresh();
   } catch (err) {
     console.error("Proaktiv token refresh misslyckades:", err);
-    // Vid fel kan du hantera utloggning eller annan återhämtning här
+    // Vid fel kan du hantera utloggning eller annan återhämtning här.
   }
 }
