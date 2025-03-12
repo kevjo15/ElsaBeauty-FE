@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
-import { ME_URL } from "./apiUrl";
 import { loginUser, logoutUser, scheduleTokenRefresh } from "./authService";
+import { ME_URL } from "./apiUrl";
 
 // Gränssnitt för JWT:s payload (behålls för referens)
 export interface JwtPayload {
