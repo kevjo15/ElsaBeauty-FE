@@ -159,7 +159,7 @@ export function scheduleTokenRefresh() {
  * Funktionen som anropar refresh-endpointen för att förnya accessToken.
  * Denna funktion används av scheduleTokenRefresh.
  */
-async function refreshTokenProactively() {
+export async function refreshTokenProactively() {
   try {
     // Hämta det aktuella accessToken från cookien
     const currentToken = getCookie("accessToken");
