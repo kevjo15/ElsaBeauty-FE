@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
+import { ME_URL } from "./apiUrl";
 import { loginUser, logoutUser, scheduleTokenRefresh } from "./authService";
 
 // Gränssnitt för JWT:s payload (behålls för referens)
@@ -46,7 +47,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Funktion som anropar "me"-endpointen för att hämta aktuell användardata
   const fetchUser = async () => {
     try {
-      const response = await axios.get("/api/User/me", {
+      const response = await axios.get(ME_URL, {
         withCredentials: true,
       });
       const { userId, email, role } = response.data;
