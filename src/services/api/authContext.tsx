@@ -1,9 +1,8 @@
-// AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { jwtDecode } from "jwt-decode";
-import { getCookie, loginUser, logoutUser } from "./authService";
+import axios from "axios";
+import { loginUser, logoutUser, scheduleTokenRefresh } from "./authService";
 
-// Gränssnitt för JWT:s payload (använd samma fält som backend skickar)
+// Gränssnitt för JWT:s payload (behålls för referens)
 export interface JwtPayload {
   sub: string;
   email: string;
@@ -18,7 +17,7 @@ export interface User {
   role?: string;
 }
 
-// Autentiseringsstate
+// Autentiseringsstate. Notera att vi fortfarande har fältet token, men med httpOnly-cookies kan vi inte läsa ut token från klienten.
 interface AuthState {
   isAuthenticated: boolean;
   token: string | null;
@@ -27,12 +26,12 @@ interface AuthState {
 
 // Kontextens värde
 interface AuthContextProps extends AuthState {
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   setAuthState: React.Dispatch<React.SetStateAction<AuthState>>;
 }
 
-// Skapa contexten
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -42,50 +41,63 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     user: null,
   });
 
-  // Vid uppstart, försök läsa token från cookien och avkoda den
-  useEffect(() => {
-    const token = getCookie("accessToken");
-    if (token) {
-      try {
-        const decoded = jwtDecode<JwtPayload>(token);
-        if (decoded.exp * 1000 > Date.now()) {
-          setAuthState({
-            isAuthenticated: true,
-            token,
-            user: { id: decoded.sub, email: decoded.email, role: decoded.role },
-          });
-        }
-      } catch (error) {
-        console.error("Error decoding token:", error);
-        setAuthState({ isAuthenticated: false, token: null, user: null });
-      }
-    }
-  }, []);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = async (email: string, password: string) => {
-    await loginUser(email, password);
-    const token = getCookie("accessToken");
-    if (token) {
-      try {
-        const decoded = jwtDecode<JwtPayload>(token);
-        setAuthState({
-          isAuthenticated: true,
-          token,
-          user: { id: decoded.sub, email: decoded.email, role: decoded.role },
-        });
-      } catch (error) {
-        console.error("Error decoding token after login:", error);
-      }
+  // Funktion som anropar "me"-endpointen för att hämta aktuell användardata
+  const fetchUser = async () => {
+    try {
+      const response = await axios.get("/api/User/me", {
+        withCredentials: true,
+      });
+      const { userId, email, role } = response.data;
+      setAuthState({
+        isAuthenticated: true,
+        token: null, // httpOnly-cookie, så vi kan inte läsa token från klienten
+        user: { id: userId, email, role },
+      });
+    } catch (error) {
+      console.error("Fel vid hämtning av användardata:", error);
+      setAuthState({ isAuthenticated: false, token: null, user: null });
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  // Vid sidladdning anropas fetchUser för att återskapa authState
+  useEffect(() => {
+    (async () => {
+      await fetchUser();
+      // Om användaren är inloggad finns en cookie, då schemalägger vi token refresh
+      scheduleTokenRefresh();
+    })();
+  }, []);
+
+  // Vid inloggning: anropa loginUser och därefter fetchUser för att hämta användardata
+  const login = async (email: string, password: string) => {
+    try {
+      await loginUser(email, password);
+      await fetchUser();
+    } catch (error) {
+      console.error("Inloggning misslyckades:", error);
+      throw error;
+    }
+  };
+
+  // Vid utloggning: anropa logoutUser och återställ authState
   const logout = async () => {
-    await logoutUser();
-    setAuthState({ isAuthenticated: false, token: null, user: null });
+    try {
+      await logoutUser();
+      setAuthState({ isAuthenticated: false, token: null, user: null });
+    } catch (error) {
+      console.error("Utloggning misslyckades:", error);
+      throw error;
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ ...authState, login, logout, setAuthState }}>
+    <AuthContext.Provider
+      value={{ ...authState, isLoading, login, logout, setAuthState }}
+    >
       {children}
     </AuthContext.Provider>
   );
