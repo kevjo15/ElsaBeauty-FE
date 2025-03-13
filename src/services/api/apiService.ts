@@ -106,3 +106,60 @@ export const revokeRefreshToken = async (): Promise<void> => {
     console.error("Failed to revoke refresh token:", error);
   }
 };
+
+// Service interfaces
+export interface Service {
+  id: string;
+  name: string;
+  description: string;
+  duration: string;
+  price: number;
+}
+
+export interface Category {
+  name: string;
+}
+
+export interface CategoryWithServices {
+  id: string;
+  name: string;
+  services: Service[];
+}
+
+// Service API functions
+export const getAllServices = async (): Promise<Service[]> => {
+  try {
+    const response = await api.get<Service[]>("Service/GetAllServices");
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch services:", error);
+    return [];
+  }
+};
+
+// Category API functions
+export const getAllCategories = async (): Promise<Category[]> => {
+  try {
+    // Use the correct endpoint URL provided by the user
+    const response = await api.get<Category[]>("categories/GetAllCategories");
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch categories:", error);
+    return [];
+  }
+};
+
+export const getCategoriesWithServices = async (): Promise<
+  CategoryWithServices[]
+> => {
+  try {
+    // Use the correct endpoint URL provided by the user
+    const response = await api.get<CategoryWithServices[]>(
+      "categories/GetCategoriesWithServices"
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch categories with services:", error);
+    return [];
+  }
+};
