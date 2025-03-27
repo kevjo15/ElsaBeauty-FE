@@ -3,6 +3,7 @@ import {
   API_BASE_URL,
   REVOKE_REFRESH_TOKEN_URL,
   REFRESH_TOKEN_URL,
+  USER_NAME_URL,
 } from "@/services/api/apiUrl";
 import { decodeAccessToken } from "./authService";
 
@@ -126,6 +127,12 @@ export interface CategoryWithServices {
   services: Service[];
 }
 
+// User interfaces
+export interface UserNameDTO {
+  firstName: string;
+  lastName: string;
+}
+
 // Service API functions
 export const getAllServices = async (): Promise<Service[]> => {
   try {
@@ -146,6 +153,17 @@ export const getAllCategories = async (): Promise<Category[]> => {
   } catch (error) {
     console.error("Failed to fetch categories:", error);
     return [];
+  }
+};
+
+// User API functions
+export const getUserName = async (): Promise<UserNameDTO | null> => {
+  try {
+    const response = await api.get<UserNameDTO>(USER_NAME_URL);
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch user name:", error);
+    return null;
   }
 };
 
