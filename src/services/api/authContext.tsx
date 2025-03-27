@@ -1,7 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
-import { loginUser, logoutUser, scheduleTokenRefresh } from "./authService";
-import { ME_URL } from "./apiUrl";
+import {
+  loginUser,
+  logoutUser,
+  scheduleTokenRefresh,
+  getCookie,
+} from "./authService";
+import { ME_URL, USER_NAME_URL } from "./apiUrl";
 
 // Gränssnitt för JWT:s payload (behålls för referens)
 export interface JwtPayload {
@@ -16,6 +21,8 @@ export interface User {
   id: string;
   email: string;
   role?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 // Autentiseringsstate. Notera att vi fortfarande har fältet token, men med httpOnly-cookies kan vi inte läsa ut token från klienten.
@@ -51,10 +58,44 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         withCredentials: true,
       });
       const { userId, email, role } = response.data;
+
+      // Hämta användarens för- och efternamn
+      let firstName = undefined;
+      let lastName = undefined;
+
+      try {
+        console.log("Fetching user name from:", USER_NAME_URL);
+        console.log("Access token:", getCookie("accessToken"));
+
+        const nameResponse = await axios.get(USER_NAME_URL, {
+          withCredentials: true,
+          headers: {
+            Authorization: `Bearer ${getCookie("accessToken")}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        console.log("Name response data:", nameResponse.data);
+
+        if (nameResponse.data) {
+          firstName = nameResponse.data.firstName;
+          lastName = nameResponse.data.lastName;
+          console.log("Extracted name:", firstName, lastName);
+        }
+      } catch (nameError) {
+        console.error("Failed to fetch user name:", nameError);
+      }
+
       setAuthState({
         isAuthenticated: true,
         token: null, // httpOnly-cookie, så vi kan inte läsa token från klienten
-        user: { id: userId, email, role },
+        user: {
+          id: userId,
+          email,
+          role,
+          firstName,
+          lastName,
+        },
       });
     } catch (error) {
       console.error("Fel vid hämtning av användardata:", error);

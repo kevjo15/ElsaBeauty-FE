@@ -8,3 +8,4 @@ export const REFRESH_TOKEN_URL = `${API_BASE_URL}/User/refreshAccessToken`;
 
 //export const ME_URL = `${API_BASE_URL}/User/me`;
 export const ME_URL = "/api/User/me";
+export const USER_NAME_URL = `${API_BASE_URL}/User/me/name`;

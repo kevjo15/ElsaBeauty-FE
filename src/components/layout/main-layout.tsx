@@ -71,8 +71,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
   };
 
-  const getInitials = (email: string) => {
-    return email.substring(0, 2).toUpperCase();
+  const getInitials = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName.charAt(0)}${user.lastName.charAt(
+        0
+      )}`.toUpperCase();
+    }
+    return user?.email ? user.email.substring(0, 2).toUpperCase() : "U";
   };
 
   return (
@@ -280,9 +285,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   >
                     <Avatar className="h-8 w-8">
                       <AvatarImage src="" alt={user?.email || ""} />
-                      <AvatarFallback>
-                        {user?.email ? getInitials(user.email) : "U"}
-                      </AvatarFallback>
+                      <AvatarFallback>{getInitials()}</AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
@@ -290,11 +293,20 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">
-                        {user?.email}
+                        {user?.firstName && user?.lastName
+                          ? `${user.firstName} ${user.lastName}`
+                          : user?.email}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground">
-                        {user?.role || "User"}
+                        {user?.email}
                       </p>
+                      {user?.role && (
+                        <div className="mt-1">
+                          <span className="px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
+                            {user.role}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
