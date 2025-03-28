@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/services/api/authContext";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "@/components/layout/main-layout";
@@ -19,10 +19,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Clock, Coffee, Sun, Moon, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Service,
   TimeSlot,
@@ -32,9 +39,13 @@ import {
   createBooking,
 } from "@/services/api/apiService";
 
+// Define view types for time slot display
+type TimeSlotViewType = "grid" | "timeline" | "list";
+
 const BookingPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const timelineRef = useRef<HTMLDivElement>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -43,6 +54,7 @@ const BookingPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [viewType, setViewType] = useState<TimeSlotViewType>("grid");
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -196,6 +208,60 @@ const BookingPage: React.FC = () => {
     return `${format(startTime, "HH:mm")} - ${format(endTime, "HH:mm")}`;
   };
 
+  // Helper function to get time period based on hour
+  const getTimePeriod = (hour: number) => {
+    if (hour >= 5 && hour < 12) return "morning";
+    if (hour >= 12 && hour < 17) return "afternoon";
+    return "evening";
+  };
+
+  // Scroll to a specific time period in the timeline view
+  const scrollToTimePeriod = (period: "morning" | "afternoon" | "evening") => {
+    if (!timelineRef.current) return;
+
+    const hourToScrollTo =
+      period === "morning" ? 9 : period === "afternoon" ? 13 : 17;
+    const timeSlotElements =
+      timelineRef.current.querySelectorAll(".timeline-slot");
+
+    for (let i = 0; i < timeSlotElements.length; i++) {
+      const slotTime = timeSlotElements[i].getAttribute("data-time");
+      if (slotTime && parseInt(slotTime) >= hourToScrollTo) {
+        timeSlotElements[i].scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        break;
+      }
+    }
+  };
+
+  // Get the count of available slots by time period
+  const getSlotCountByPeriod = () => {
+    const counts = { morning: 0, afternoon: 0, evening: 0 };
+
+    availableSlots.forEach((slot) => {
+      const hour = new Date(slot.startTime).getHours();
+      if (hour >= 5 && hour < 12) counts.morning++;
+      else if (hour >= 12 && hour < 17) counts.afternoon++;
+      else counts.evening++;
+    });
+
+    return counts;
+  };
+
+  // Calculate slot popularity (mock data for demonstration)
+  const getSlotPopularity = (slot: TimeSlot): "low" | "medium" | "high" => {
+    const hour = new Date(slot.startTime).getHours();
+    const minute = new Date(slot.startTime).getMinutes();
+
+    // This is just a mock implementation - in a real app, this would be based on actual booking data
+    if (hour === 12 || hour === 13 || (hour === 17 && minute === 0))
+      return "high";
+    if (hour === 10 || hour === 11 || hour === 16) return "medium";
+    return "low";
+  };
+
   return (
     <MainLayout>
       <div className="container mx-auto py-6">
@@ -280,7 +346,103 @@ const BookingPage: React.FC = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Select Time Slot</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle>Select Time Slot</CardTitle>
+                <div className="flex space-x-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setViewType("grid")}
+                          className={viewType === "grid" ? "bg-primary/10" : ""}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="mr-1"
+                          >
+                            <rect width="7" height="7" x="3" y="3" rx="1" />
+                            <rect width="7" height="7" x="14" y="3" rx="1" />
+                            <rect width="7" height="7" x="14" y="14" rx="1" />
+                            <rect width="7" height="7" x="3" y="14" rx="1" />
+                          </svg>
+                          Grid
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>View as grid</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setViewType("timeline")}
+                          className={
+                            viewType === "timeline" ? "bg-primary/10" : ""
+                          }
+                        >
+                          <Clock className="h-4 w-4 mr-1" />
+                          Timeline
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>View as timeline</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setViewType("list")}
+                          className={viewType === "list" ? "bg-primary/10" : ""}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="mr-1"
+                          >
+                            <line x1="8" x2="21" y1="6" y2="6" />
+                            <line x1="8" x2="21" y1="12" y2="12" />
+                            <line x1="8" x2="21" y1="18" y2="18" />
+                            <line x1="3" x2="3.01" y1="6" y2="6" />
+                            <line x1="3" x2="3.01" y1="12" y2="12" />
+                            <line x1="3" x2="3.01" y1="18" y2="18" />
+                          </svg>
+                          List
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>View as list</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
@@ -290,79 +452,589 @@ const BookingPage: React.FC = () => {
               ) : selectedService && selectedDate ? (
                 availableSlots.length > 0 ? (
                   <div className="space-y-4">
-                    <div className="space-y-4">
-                      <h3 className="text-sm font-medium">Morning</h3>
-                      <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-1.5">
-                        {availableSlots
-                          .filter((slot) => {
-                            const hour = new Date(slot.startTime).getHours();
-                            return hour >= 8 && hour < 12;
-                          })
-                          .map((slot, index) => (
-                            <Button
-                              key={index}
-                              variant={
-                                selectedSlot &&
-                                selectedSlot.startTime === slot.startTime
-                                  ? "default"
-                                  : "outline"
-                              }
-                              className="h-auto py-2 w-[110px]"
-                              onClick={() => handleSlotSelect(slot)}
-                            >
-                              {formatTimeSlot(slot)}
-                            </Button>
-                          ))}
-                      </div>
-
-                      <h3 className="text-sm font-medium mt-6">Afternoon</h3>
-                      <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-1.5">
-                        {availableSlots
-                          .filter((slot) => {
-                            const hour = new Date(slot.startTime).getHours();
-                            return hour >= 12 && hour < 17;
-                          })
-                          .map((slot, index) => (
-                            <Button
-                              key={index}
-                              variant={
-                                selectedSlot &&
-                                selectedSlot.startTime === slot.startTime
-                                  ? "default"
-                                  : "outline"
-                              }
-                              className="h-auto py-2 w-[110px]"
-                              onClick={() => handleSlotSelect(slot)}
-                            >
-                              {formatTimeSlot(slot)}
-                            </Button>
-                          ))}
-                      </div>
-
-                      <h3 className="text-sm font-medium mt-6">Evening</h3>
-                      <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
-                        {availableSlots
-                          .filter((slot) => {
-                            const hour = new Date(slot.startTime).getHours();
-                            return hour >= 17;
-                          })
-                          .map((slot, index) => (
-                            <Button
-                              key={index}
-                              variant={
-                                selectedSlot &&
-                                selectedSlot.startTime === slot.startTime
-                                  ? "default"
-                                  : "outline"
-                              }
-                              className="h-auto py-2 w-[110px]"
-                              onClick={() => handleSlotSelect(slot)}
-                            >
-                              {formatTimeSlot(slot)}
-                            </Button>
-                          ))}
-                      </div>
+                    {/* Quick selection shortcuts */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center"
+                        onClick={() => {
+                          if (viewType === "timeline") {
+                            scrollToTimePeriod("morning");
+                          } else {
+                            document
+                              .getElementById("morning-section")
+                              ?.scrollIntoView({ behavior: "smooth" });
+                          }
+                        }}
+                      >
+                        <Sun className="h-4 w-4 mr-1 text-yellow-500" />
+                        Morning
+                        <span className="ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">
+                          {getSlotCountByPeriod().morning}
+                        </span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center"
+                        onClick={() => {
+                          if (viewType === "timeline") {
+                            scrollToTimePeriod("afternoon");
+                          } else {
+                            document
+                              .getElementById("afternoon-section")
+                              ?.scrollIntoView({ behavior: "smooth" });
+                          }
+                        }}
+                      >
+                        <Coffee className="h-4 w-4 mr-1 text-orange-500" />
+                        Afternoon
+                        <span className="ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">
+                          {getSlotCountByPeriod().afternoon}
+                        </span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center"
+                        onClick={() => {
+                          if (viewType === "timeline") {
+                            scrollToTimePeriod("evening");
+                          } else {
+                            document
+                              .getElementById("evening-section")
+                              ?.scrollIntoView({ behavior: "smooth" });
+                          }
+                        }}
+                      >
+                        <Moon className="h-4 w-4 mr-1 text-blue-500" />
+                        Evening
+                        <span className="ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">
+                          {getSlotCountByPeriod().evening}
+                        </span>
+                      </Button>
                     </div>
+
+                    {/* Grid View */}
+                    {viewType === "grid" && (
+                      <div className="space-y-4">
+                        <div
+                          id="morning-section"
+                          className="bg-yellow-50 dark:bg-yellow-950/20 p-3 rounded-md"
+                        >
+                          <h3 className="text-sm font-medium flex items-center">
+                            <Sun className="h-4 w-4 mr-2 text-yellow-500" />
+                            Morning
+                          </h3>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 lg:grid-cols-12 gap-1.5 mt-2">
+                            {availableSlots
+                              .filter((slot) => {
+                                const hour = new Date(
+                                  slot.startTime
+                                ).getHours();
+                                return hour >= 8 && hour < 12;
+                              })
+                              .map((slot, index) => {
+                                const popularity = getSlotPopularity(slot);
+                                return (
+                                  <TooltipProvider key={index}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant={
+                                            selectedSlot &&
+                                            selectedSlot.startTime ===
+                                              slot.startTime
+                                              ? "default"
+                                              : "outline"
+                                          }
+                                          className={cn(
+                                            "h-auto py-2 w-full relative",
+                                            popularity === "high" &&
+                                              "border-orange-300",
+                                            popularity === "medium" &&
+                                              "border-yellow-300"
+                                          )}
+                                          onClick={() => handleSlotSelect(slot)}
+                                        >
+                                          {formatTimeSlot(slot)}
+                                          {popularity === "high" && (
+                                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                                              <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                                            </span>
+                                          )}
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>
+                                          {popularity === "high"
+                                            ? "Popular time - booking quickly!"
+                                            : popularity === "medium"
+                                            ? "Moderately popular time"
+                                            : "Plenty of availability"}
+                                        </p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                );
+                              })}
+                          </div>
+                        </div>
+
+                        <div
+                          id="afternoon-section"
+                          className="bg-orange-50 dark:bg-orange-950/20 p-3 rounded-md"
+                        >
+                          <h3 className="text-sm font-medium flex items-center">
+                            <Coffee className="h-4 w-4 mr-2 text-orange-500" />
+                            Afternoon
+                          </h3>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 lg:grid-cols-12 gap-1.5 mt-2">
+                            {availableSlots
+                              .filter((slot) => {
+                                const hour = new Date(
+                                  slot.startTime
+                                ).getHours();
+                                return hour >= 12 && hour < 17;
+                              })
+                              .map((slot, index) => {
+                                const popularity = getSlotPopularity(slot);
+                                return (
+                                  <TooltipProvider key={index}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          key={index}
+                                          variant={
+                                            selectedSlot &&
+                                            selectedSlot.startTime ===
+                                              slot.startTime
+                                              ? "default"
+                                              : "outline"
+                                          }
+                                          className={cn(
+                                            "h-auto py-2 w-full relative",
+                                            popularity === "high" &&
+                                              "border-orange-300",
+                                            popularity === "medium" &&
+                                              "border-yellow-300"
+                                          )}
+                                          onClick={() => handleSlotSelect(slot)}
+                                        >
+                                          {formatTimeSlot(slot)}
+                                          {popularity === "high" && (
+                                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                                              <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                                            </span>
+                                          )}
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>
+                                          {popularity === "high"
+                                            ? "Popular time - booking quickly!"
+                                            : popularity === "medium"
+                                            ? "Moderately popular time"
+                                            : "Plenty of availability"}
+                                        </p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                );
+                              })}
+                          </div>
+                        </div>
+
+                        <div
+                          id="evening-section"
+                          className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-md"
+                        >
+                          <h3 className="text-sm font-medium flex items-center">
+                            <Moon className="h-4 w-4 mr-2 text-blue-500" />
+                            Evening
+                          </h3>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 lg:grid-cols-8 gap-1.5 mt-2">
+                            {availableSlots
+                              .filter((slot) => {
+                                const hour = new Date(
+                                  slot.startTime
+                                ).getHours();
+                                return hour >= 17;
+                              })
+                              .map((slot, index) => {
+                                const popularity = getSlotPopularity(slot);
+                                return (
+                                  <TooltipProvider key={index}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          key={index}
+                                          variant={
+                                            selectedSlot &&
+                                            selectedSlot.startTime ===
+                                              slot.startTime
+                                              ? "default"
+                                              : "outline"
+                                          }
+                                          className={cn(
+                                            "h-auto py-2 w-full relative",
+                                            popularity === "high" &&
+                                              "border-orange-300",
+                                            popularity === "medium" &&
+                                              "border-yellow-300"
+                                          )}
+                                          onClick={() => handleSlotSelect(slot)}
+                                        >
+                                          {formatTimeSlot(slot)}
+                                          {popularity === "high" && (
+                                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                                              <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                                            </span>
+                                          )}
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>
+                                          {popularity === "high"
+                                            ? "Popular time - booking quickly!"
+                                            : popularity === "medium"
+                                            ? "Moderately popular time"
+                                            : "Plenty of availability"}
+                                        </p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Timeline View */}
+                    {viewType === "timeline" && (
+                      <div className="relative">
+                        <div className="absolute top-0 bottom-0 left-16 w-px bg-border"></div>
+                        <div
+                          ref={timelineRef}
+                          className="space-y-2 max-h-[400px] overflow-y-auto pr-2"
+                        >
+                          {availableSlots
+                            .sort(
+                              (a, b) =>
+                                new Date(a.startTime).getTime() -
+                                new Date(b.startTime).getTime()
+                            )
+                            .map((slot, index) => {
+                              const startTime = new Date(slot.startTime);
+                              const hour = startTime.getHours();
+                              const timePeriod = getTimePeriod(hour);
+                              const popularity = getSlotPopularity(slot);
+
+                              return (
+                                <div
+                                  key={index}
+                                  className={cn(
+                                    "timeline-slot flex items-center p-2 rounded-md transition-colors",
+                                    timePeriod === "morning" &&
+                                      "bg-yellow-50 dark:bg-yellow-950/20",
+                                    timePeriod === "afternoon" &&
+                                      "bg-orange-50 dark:bg-orange-950/20",
+                                    timePeriod === "evening" &&
+                                      "bg-blue-50 dark:bg-blue-950/20",
+                                    selectedSlot &&
+                                      selectedSlot.startTime ===
+                                        slot.startTime &&
+                                      "border-2 border-primary"
+                                  )}
+                                  data-time={hour}
+                                  onClick={() => handleSlotSelect(slot)}
+                                >
+                                  <div className="w-16 font-medium text-right pr-4">
+                                    {format(startTime, "HH:mm")}
+                                  </div>
+                                  <div className="relative w-4 h-4 rounded-full bg-background border-2 border-primary z-10 flex-shrink-0">
+                                    {popularity === "high" && (
+                                      <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="ml-4 flex-grow">
+                                    <div className="font-medium">
+                                      {formatTimeSlot(slot)}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground flex items-center">
+                                      {timePeriod === "morning" && (
+                                        <Sun className="h-3 w-3 mr-1 text-yellow-500" />
+                                      )}
+                                      {timePeriod === "afternoon" && (
+                                        <Coffee className="h-3 w-3 mr-1 text-orange-500" />
+                                      )}
+                                      {timePeriod === "evening" && (
+                                        <Moon className="h-3 w-3 mr-1 text-blue-500" />
+                                      )}
+                                      {timePeriod.charAt(0).toUpperCase() +
+                                        timePeriod.slice(1)}
+
+                                      {popularity === "high" && (
+                                        <span className="ml-2 flex items-center text-orange-600">
+                                          <Users className="h-3 w-3 mr-1" />
+                                          Popular
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* List View */}
+                    {viewType === "list" && (
+                      <Tabs defaultValue="morning" className="w-full">
+                        <TabsList className="grid w-full grid-cols-3">
+                          <TabsTrigger
+                            value="morning"
+                            className="flex items-center"
+                          >
+                            <Sun className="h-4 w-4 mr-2 text-yellow-500" />
+                            Morning
+                            <span className="ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">
+                              {getSlotCountByPeriod().morning}
+                            </span>
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="afternoon"
+                            className="flex items-center"
+                          >
+                            <Coffee className="h-4 w-4 mr-2 text-orange-500" />
+                            Afternoon
+                            <span className="ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">
+                              {getSlotCountByPeriod().afternoon}
+                            </span>
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="evening"
+                            className="flex items-center"
+                          >
+                            <Moon className="h-4 w-4 mr-2 text-blue-500" />
+                            Evening
+                            <span className="ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">
+                              {getSlotCountByPeriod().evening}
+                            </span>
+                          </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="morning" className="mt-4">
+                          <div className="space-y-2">
+                            {availableSlots
+                              .filter((slot) => {
+                                const hour = new Date(
+                                  slot.startTime
+                                ).getHours();
+                                return hour >= 8 && hour < 12;
+                              })
+                              .map((slot, index) => {
+                                const popularity = getSlotPopularity(slot);
+                                return (
+                                  <div
+                                    key={index}
+                                    className={cn(
+                                      "flex items-center p-3 rounded-md border transition-colors",
+                                      selectedSlot &&
+                                        selectedSlot.startTime ===
+                                          slot.startTime
+                                        ? "bg-primary/10 border-primary"
+                                        : "hover:bg-muted/50",
+                                      popularity === "high" &&
+                                        "border-orange-300",
+                                      popularity === "medium" &&
+                                        "border-yellow-300"
+                                    )}
+                                    onClick={() => handleSlotSelect(slot)}
+                                  >
+                                    <div className="flex-grow">
+                                      <div className="font-medium">
+                                        {formatTimeSlot(slot)}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        Morning slot
+                                      </div>
+                                    </div>
+                                    {popularity === "high" && (
+                                      <div className="flex items-center text-orange-600 text-sm">
+                                        <Users className="h-4 w-4 mr-1" />
+                                        Popular
+                                      </div>
+                                    )}
+                                    {selectedSlot &&
+                                      selectedSlot.startTime ===
+                                        slot.startTime && (
+                                        <div className="ml-2 text-primary">
+                                          <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="16"
+                                            height="16"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                          >
+                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                          </svg>
+                                        </div>
+                                      )}
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="afternoon" className="mt-4">
+                          <div className="space-y-2">
+                            {availableSlots
+                              .filter((slot) => {
+                                const hour = new Date(
+                                  slot.startTime
+                                ).getHours();
+                                return hour >= 12 && hour < 17;
+                              })
+                              .map((slot, index) => {
+                                const popularity = getSlotPopularity(slot);
+                                return (
+                                  <div
+                                    key={index}
+                                    className={cn(
+                                      "flex items-center p-3 rounded-md border transition-colors",
+                                      selectedSlot &&
+                                        selectedSlot.startTime ===
+                                          slot.startTime
+                                        ? "bg-primary/10 border-primary"
+                                        : "hover:bg-muted/50",
+                                      popularity === "high" &&
+                                        "border-orange-300",
+                                      popularity === "medium" &&
+                                        "border-yellow-300"
+                                    )}
+                                    onClick={() => handleSlotSelect(slot)}
+                                  >
+                                    <div className="flex-grow">
+                                      <div className="font-medium">
+                                        {formatTimeSlot(slot)}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        Afternoon slot
+                                      </div>
+                                    </div>
+                                    {popularity === "high" && (
+                                      <div className="flex items-center text-orange-600 text-sm">
+                                        <Users className="h-4 w-4 mr-1" />
+                                        Popular
+                                      </div>
+                                    )}
+                                    {selectedSlot &&
+                                      selectedSlot.startTime ===
+                                        slot.startTime && (
+                                        <div className="ml-2 text-primary">
+                                          <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="16"
+                                            height="16"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                          >
+                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                          </svg>
+                                        </div>
+                                      )}
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="evening" className="mt-4">
+                          <div className="space-y-2">
+                            {availableSlots
+                              .filter((slot) => {
+                                const hour = new Date(
+                                  slot.startTime
+                                ).getHours();
+                                return hour >= 17;
+                              })
+                              .map((slot, index) => {
+                                const popularity = getSlotPopularity(slot);
+                                return (
+                                  <div
+                                    key={index}
+                                    className={cn(
+                                      "flex items-center p-3 rounded-md border transition-colors",
+                                      selectedSlot &&
+                                        selectedSlot.startTime ===
+                                          slot.startTime
+                                        ? "bg-primary/10 border-primary"
+                                        : "hover:bg-muted/50",
+                                      popularity === "high" &&
+                                        "border-orange-300",
+                                      popularity === "medium" &&
+                                        "border-yellow-300"
+                                    )}
+                                    onClick={() => handleSlotSelect(slot)}
+                                  >
+                                    <div className="flex-grow">
+                                      <div className="font-medium">
+                                        {formatTimeSlot(slot)}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        Evening slot
+                                      </div>
+                                    </div>
+                                    {popularity === "high" && (
+                                      <div className="flex items-center text-orange-600 text-sm">
+                                        <Users className="h-4 w-4 mr-1" />
+                                        Popular
+                                      </div>
+                                    )}
+                                    {selectedSlot &&
+                                      selectedSlot.startTime ===
+                                        slot.startTime && (
+                                        <div className="ml-2 text-primary">
+                                          <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="16"
+                                            height="16"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                          >
+                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                          </svg>
+                                        </div>
+                                      )}
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    )}
 
                     {selectedSlot && (
                       <div className="mt-6">
