@@ -44,7 +44,6 @@ const BookingPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Fetch services on component mount
   useEffect(() => {
     const fetchServices = async () => {
       try {
@@ -59,7 +58,6 @@ const BookingPage: React.FC = () => {
     fetchServices();
   }, []);
 
-  // Fetch available time slots when service and date are selected
   useEffect(() => {
     const fetchTimeSlots = async () => {
       if (selectedService && selectedDate) {
@@ -72,11 +70,9 @@ const BookingPage: React.FC = () => {
             date: formattedDate,
           });
 
-          // For testing purposes, let's create some mock time slots
-          // This will allow us to test the UI while the backend endpoint is being fixed
           const mockSlots: TimeSlot[] = [];
-          const startHour = 9; // 9 AM
-          const endHour = 17; // 5 PM
+          const startHour = 9;
+          const endHour = 17;
 
           for (let hour = startHour; hour < endHour; hour++) {
             const startTime = new Date(selectedDate);
@@ -93,7 +89,6 @@ const BookingPage: React.FC = () => {
           }
 
           try {
-            // Try to fetch from the API first
             const slots = await getAvailableTimeSlots(
               selectedService.id,
               formattedDate
@@ -101,21 +96,19 @@ const BookingPage: React.FC = () => {
             setAvailableSlots(slots);
           } catch (apiError) {
             console.error("API error, using mock data:", apiError);
-            // If API fails, use mock data
             setAvailableSlots(mockSlots);
           }
 
-          setSelectedSlot(null); // Reset selected slot when new slots are loaded
+          setSelectedSlot(null);
         } catch (error) {
           console.error("Error fetching time slots:", error);
           setError(
             "Failed to load available time slots. Using mock data for demonstration."
           );
 
-          // Create mock slots for demonstration
           const mockSlots: TimeSlot[] = [];
-          const startHour = 9; // 9 AM
-          const endHour = 17; // 5 PM
+          const startHour = 9;
+          const endHour = 17;
 
           for (let hour = startHour; hour < endHour; hour++) {
             const startTime = new Date(selectedDate);
@@ -169,10 +162,8 @@ const BookingPage: React.FC = () => {
     try {
       console.log("User data:", user);
 
-      // In the test frontend, they use "userId: currentUserId || 'test-user-id'"
-      // Let's try using a hardcoded value if user.id is undefined
       const bookingData: BookingRequest = {
-        userId: user?.id || "test-user-id", // Fallback to test-user-id if user.id is undefined
+        userId: user?.id || "test-user-id",
         serviceId: selectedService.id,
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
@@ -183,13 +174,11 @@ const BookingPage: React.FC = () => {
       await createBooking(bookingData);
       setSuccess("Booking created successfully!");
 
-      // Reset form
       setSelectedService(null);
       setSelectedDate(undefined);
       setSelectedSlot(null);
       setAvailableSlots([]);
 
-      // Redirect to bookings page after a short delay
       setTimeout(() => {
         navigate("/bookings");
       }, 2000);
@@ -212,7 +201,7 @@ const BookingPage: React.FC = () => {
       <div className="container mx-auto py-6">
         <h1 className="text-3xl font-bold mb-6">Book an Appointment</h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Select Service</CardTitle>
@@ -277,7 +266,6 @@ const BookingPage: React.FC = () => {
                         selected={selectedDate}
                         onSelect={handleDateChange}
                         disabled={(date) => {
-                          // Disable dates in the past
                           const today = new Date();
                           today.setHours(0, 0, 0, 0);
                           return date < today;
@@ -304,7 +292,7 @@ const BookingPage: React.FC = () => {
                   <div className="space-y-4">
                     <div className="space-y-4">
                       <h3 className="text-sm font-medium">Morning</h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-1.5">
                         {availableSlots
                           .filter((slot) => {
                             const hour = new Date(slot.startTime).getHours();
@@ -319,7 +307,7 @@ const BookingPage: React.FC = () => {
                                   ? "default"
                                   : "outline"
                               }
-                              className="h-auto py-2"
+                              className="h-auto py-2 w-[110px]"
                               onClick={() => handleSlotSelect(slot)}
                             >
                               {formatTimeSlot(slot)}
@@ -328,7 +316,7 @@ const BookingPage: React.FC = () => {
                       </div>
 
                       <h3 className="text-sm font-medium mt-6">Afternoon</h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-1.5">
                         {availableSlots
                           .filter((slot) => {
                             const hour = new Date(slot.startTime).getHours();
@@ -343,7 +331,7 @@ const BookingPage: React.FC = () => {
                                   ? "default"
                                   : "outline"
                               }
-                              className="h-auto py-2"
+                              className="h-auto py-2 w-[110px]"
                               onClick={() => handleSlotSelect(slot)}
                             >
                               {formatTimeSlot(slot)}
@@ -352,7 +340,7 @@ const BookingPage: React.FC = () => {
                       </div>
 
                       <h3 className="text-sm font-medium mt-6">Evening</h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
                         {availableSlots
                           .filter((slot) => {
                             const hour = new Date(slot.startTime).getHours();
@@ -367,7 +355,7 @@ const BookingPage: React.FC = () => {
                                   ? "default"
                                   : "outline"
                               }
-                              className="h-auto py-2"
+                              className="h-auto py-2 w-[110px]"
                               onClick={() => handleSlotSelect(slot)}
                             >
                               {formatTimeSlot(slot)}
