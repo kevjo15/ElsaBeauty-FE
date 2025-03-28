@@ -240,7 +240,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                           <Button
                             variant="link"
                             className="p-0 h-auto text-sm font-medium text-primary"
-                            onClick={() => navigate("/bookings/new")}
+                            onClick={() => navigate("/bookings")}
                           >
                             Book New Appointment
                           </Button>
@@ -249,7 +249,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                               variant="ghost"
                               size="sm"
                               className="px-2 py-1 h-auto text-xs justify-start w-full hover:text-primary transition-colors"
-                              onClick={() => navigate("/bookings/new")}
+                              onClick={() => navigate("/bookings")}
                             >
                               Schedule New Booking
                             </Button>
@@ -257,7 +257,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                               variant="ghost"
                               size="sm"
                               className="px-2 py-1 h-auto text-xs justify-start w-full hover:text-primary transition-colors"
-                              onClick={() => navigate("/bookings/available")}
+                              onClick={() => navigate("/bookings")}
                             >
                               Check Available Times
                             </Button>
