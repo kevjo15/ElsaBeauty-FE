@@ -13,6 +13,9 @@ import HomePage from "@/pages/HomePage";
 import ProtectedRoute from "@/components/Protected-route";
 import { AuthProvider } from "@/services/api/authContext";
 
+// Import the BookingPage
+import BookingPage from "@/pages/BookingPage";
+
 function App() {
   return (
     <Router>
@@ -26,6 +29,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <HomePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/bookings"
+              element={
+                <ProtectedRoute>
+                  <BookingPage />
                 </ProtectedRoute>
               }
             />

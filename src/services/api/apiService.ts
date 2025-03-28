@@ -4,6 +4,8 @@ import {
   REVOKE_REFRESH_TOKEN_URL,
   REFRESH_TOKEN_URL,
   USER_NAME_URL,
+  GET_AVAILABLE_SLOTS_URL,
+  CREATE_BOOKING_URL,
 } from "@/services/api/apiUrl";
 import { decodeAccessToken } from "./authService";
 
@@ -133,6 +135,34 @@ export interface UserNameDTO {
   lastName: string;
 }
 
+// Booking interfaces
+export interface TimeSlot {
+  startTime: string;
+  endTime: string;
+  isAvailable: boolean;
+}
+
+export interface DaySlots {
+  date: string;
+  availableSlots: TimeSlot[];
+}
+
+export interface BookingRequest {
+  userId: string;
+  serviceId: string;
+  startTime: string;
+  endTime: string;
+}
+
+export interface BookingResponse {
+  id: string;
+  userId: string;
+  serviceId: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+}
+
 // Service API functions
 export const getAllServices = async (): Promise<Service[]> => {
   try {
@@ -179,5 +209,71 @@ export const getCategoriesWithServices = async (): Promise<
   } catch (error) {
     console.error("Failed to fetch categories with services:", error);
     return [];
+  }
+};
+
+// Booking API functions
+export const getAvailableTimeSlots = async (
+  serviceId: string,
+  date: string
+): Promise<TimeSlot[]> => {
+  try {
+    const response = await api.get<DaySlots[]>(GET_AVAILABLE_SLOTS_URL, {
+      params: {
+        serviceId,
+        date,
+      },
+    });
+
+    // Extract all available slots from all days
+    const availableSlots: TimeSlot[] = [];
+    response.data.forEach((day) => {
+      day.availableSlots.forEach((slot) => {
+        if (slot.isAvailable) {
+          availableSlots.push(slot);
+        }
+      });
+    });
+
+    return availableSlots;
+  } catch (error) {
+    console.error("Failed to fetch available time slots:", error);
+    return [];
+  }
+};
+
+export const createBooking = async (
+  bookingData: BookingRequest
+): Promise<BookingResponse | null> => {
+  try {
+    // Get the access token from cookie
+    const accessToken = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("accessToken="))
+      ?.split("=")[1];
+
+    // Use fetch instead of axios to match the test frontend implementation
+    const response = await fetch(CREATE_BOOKING_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(bookingData),
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Booking error response:", errorText);
+      throw new Error(
+        `Failed to create booking: ${response.status} ${response.statusText}`
+      );
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to create booking:", error);
+    throw error;
   }
 };
