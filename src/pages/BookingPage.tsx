@@ -77,66 +77,18 @@ const BookingPage: React.FC = () => {
         setError(null);
         try {
           const formattedDate = format(selectedDate, "yyyy-MM-dd");
-          console.log("Fetching time slots for:", {
-            serviceId: selectedService.id,
-            date: formattedDate,
-          });
-
-          const mockSlots: TimeSlot[] = [];
-          const startHour = 9;
-          const endHour = 17;
-
-          for (let hour = startHour; hour < endHour; hour++) {
-            const startTime = new Date(selectedDate);
-            startTime.setHours(hour, 0, 0, 0);
-
-            const endTime = new Date(selectedDate);
-            endTime.setHours(hour + 1, 0, 0, 0);
-
-            mockSlots.push({
-              startTime: startTime.toISOString(),
-              endTime: endTime.toISOString(),
-              isAvailable: true,
-            });
-          }
-
-          try {
-            const slots = await getAvailableTimeSlots(
-              selectedService.id,
-              formattedDate
-            );
-            setAvailableSlots(slots);
-          } catch (apiError) {
-            console.error("API error, using mock data:", apiError);
-            setAvailableSlots(mockSlots);
-          }
-
+          const slots = await getAvailableTimeSlots(
+            selectedService.id,
+            formattedDate
+          );
+          setAvailableSlots(slots);
           setSelectedSlot(null);
         } catch (error) {
           console.error("Error fetching time slots:", error);
           setError(
-            "Failed to load available time slots. Using mock data for demonstration."
+            "Failed to load available time slots. Please try again later."
           );
-
-          const mockSlots: TimeSlot[] = [];
-          const startHour = 9;
-          const endHour = 17;
-
-          for (let hour = startHour; hour < endHour; hour++) {
-            const startTime = new Date(selectedDate);
-            startTime.setHours(hour, 0, 0, 0);
-
-            const endTime = new Date(selectedDate);
-            endTime.setHours(hour + 1, 0, 0, 0);
-
-            mockSlots.push({
-              startTime: startTime.toISOString(),
-              endTime: endTime.toISOString(),
-              isAvailable: true,
-            });
-          }
-
-          setAvailableSlots(mockSlots);
+          setAvailableSlots([]);
         } finally {
           setLoading(false);
         }
