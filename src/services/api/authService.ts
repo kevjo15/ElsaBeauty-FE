@@ -60,10 +60,14 @@ export const loginUser = async (
     const token = response.data.token;
     if (token) {
       const decoded = decodeAccessToken(token);
-      localStorage.setItem(
-        "refreshTokenExpiryTime",
-        decoded.RefreshTokenExpiryTime
-      );
+      if (decoded.RefreshTokenExpiryTime) {
+        localStorage.setItem(
+          "refreshTokenExpiryTime",
+          decoded.RefreshTokenExpiryTime
+        );
+      } else {
+        console.warn("RefreshTokenExpiryTime saknas i tokenet (login)");
+      }
       setCookie("accessToken", token, 1); // Sätter cookien i 1 dag (justera efter behov)
       // Schemalägg proaktiv refresh direkt efter inloggning
       scheduleTokenRefresh();
@@ -178,10 +182,14 @@ export async function refreshTokenProactively() {
     }
     // Avkoda det nya tokenet med din typ
     const decoded = jwtDecode<JwtPayload>(newToken);
-    localStorage.setItem(
-      "refreshTokenExpiryTime",
-      decoded.RefreshTokenExpiryTime
-    );
+    if (decoded.RefreshTokenExpiryTime) {
+      localStorage.setItem(
+        "refreshTokenExpiryTime",
+        decoded.RefreshTokenExpiryTime
+      );
+    } else {
+      console.warn("RefreshTokenExpiryTime saknas i tokenet (refresh)");
+    }
     // Uppdatera accessToken-cookien med det nya tokenet
     setCookie("accessToken", newToken, 1);
     console.log("Token förnyades proaktivt. nya accessToken :", newToken);
