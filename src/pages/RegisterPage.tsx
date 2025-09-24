@@ -7,26 +7,6 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import ModeToggle from "@/components/mode-toggle";
 
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-//import { PasswordInput } from "@/components/ui/password-input";
-import { PhoneInput } from "@/components/ui/phone-input";
-
 // Define validation schema using Zod
 const formSchema = z
   .object({
@@ -63,8 +43,10 @@ export default function RegisterPreview() {
       // Assuming an async registration function
       console.log(values);
       toast(
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(values, null, 2)}</code>
+        <pre className="mt-2 w-[340px] rounded-md bg-base-300 p-4">
+          <code className="text-base-content">
+            {JSON.stringify(values, null, 2)}
+          </code>
         </pre>
       );
     } catch (error) {
@@ -83,134 +65,126 @@ export default function RegisterPreview() {
       </div>
 
       <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-        <Card className="mx-auto max-w-sm">
-          <CardHeader>
-            <CardTitle className="text-2xl">Register</CardTitle>
-            <CardDescription>
+        <div className="card bg-base-100 shadow-xl mx-auto max-w-sm">
+          <div className="card-body">
+            <h2 className="card-title text-2xl">Register</h2>
+            <p className="text-base-content">
               Create a new account by filling out the form below.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-8"
-              >
-                <div className="grid gap-4">
-                  {/* Name Field */}
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem className="grid gap-2">
-                        <FormLabel htmlFor="name">Full Name</FormLabel>
-                        <FormControl>
-                          <Input id="name" placeholder="John Doe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+            </p>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <div className="grid gap-4">
+                {/* Name Field */}
+                <div>
+                  <label htmlFor="name" className="label">
+                    Full Name
+                  </label>
+                  <input
+                    id="name"
+                    placeholder="John Doe"
+                    className="input input-bordered w-full"
+                    {...form.register("name")}
                   />
-
-                  {/* Email Field */}
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem className="grid gap-2">
-                        <FormLabel htmlFor="email">Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            id="email"
-                            placeholder="johndoe@mail.com"
-                            type="email"
-                            autoComplete="email"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Phone Field */}
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem className="grid gap-2">
-                        <FormLabel htmlFor="phone">Phone Number</FormLabel>
-                        <FormControl>
-                          <PhoneInput {...field} defaultCountry="TR" />
-                          {/* <Input
-                          id="phone"
-                          placeholder="555-123-4567"
-                          type="tel"
-                          autoComplete="tel"
-                          {...field}
-                        /> */}
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Password Field */}
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem className="grid gap-2">
-                        <FormLabel htmlFor="password">Password</FormLabel>
-                        <FormControl>
-                          <Input
-                            id="password"
-                            placeholder="******"
-                            autoComplete="new-password"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Confirm Password Field */}
-                  <FormField
-                    control={form.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem className="grid gap-2">
-                        <FormLabel htmlFor="confirmPassword">
-                          Confirm Password
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            id="confirmPassword"
-                            placeholder="******"
-                            autoComplete="new-password"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button type="submit" className="w-full">
-                    Register
-                  </Button>
+                  {form.formState.errors.name && (
+                    <p className="text-error text-sm mt-1">
+                      {form.formState.errors.name.message}
+                    </p>
+                  )}
                 </div>
-              </form>
-            </Form>
+
+                {/* Email Field */}
+                <div>
+                  <label htmlFor="email" className="label">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    placeholder="johndoe@mail.com"
+                    type="email"
+                    autoComplete="email"
+                    className="input input-bordered w-full"
+                    {...form.register("email")}
+                  />
+                  {form.formState.errors.email && (
+                    <p className="text-error text-sm mt-1">
+                      {form.formState.errors.email.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Phone Field */}
+                <div>
+                  <label htmlFor="phone" className="label">
+                    Phone Number
+                  </label>
+                  <input
+                    id="phone"
+                    placeholder="555-123-4567"
+                    type="tel"
+                    autoComplete="tel"
+                    className="input input-bordered w-full"
+                    {...form.register("phone")}
+                  />
+                  {form.formState.errors.phone && (
+                    <p className="text-error text-sm mt-1">
+                      {form.formState.errors.phone.message}
+                    </p>
+                  )}
+                  {/* TODO: Re-integrate react-phone-number-input or find a DaisyUI alternative */}
+                </div>
+
+                {/* Password Field */}
+                <div>
+                  <label htmlFor="password" className="label">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    placeholder="******"
+                    type="password"
+                    autoComplete="new-password"
+                    className="input input-bordered w-full"
+                    {...form.register("password")}
+                  />
+                  {form.formState.errors.password && (
+                    <p className="text-error text-sm mt-1">
+                      {form.formState.errors.password.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Confirm Password Field */}
+                <div>
+                  <label htmlFor="confirmPassword" className="label">
+                    Confirm Password
+                  </label>
+                  <input
+                    id="confirmPassword"
+                    placeholder="******"
+                    type="password"
+                    autoComplete="new-password"
+                    className="input input-bordered w-full"
+                    {...form.register("confirmPassword")}
+                  />
+                  {form.formState.errors.confirmPassword && (
+                    <p className="text-error text-sm mt-1">
+                      {form.formState.errors.confirmPassword.message}
+                    </p>
+                  )}
+                </div>
+
+                <button type="submit" className="btn btn-primary w-full">
+                  Register
+                </button>
+              </div>
+            </form>
             <div className="mt-4 text-center text-sm">
               Already have an account?{" "}
               <Link to="/login" className="underline">
                 Login
               </Link>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
