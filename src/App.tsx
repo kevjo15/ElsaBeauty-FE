@@ -15,6 +15,7 @@ import { AuthProvider } from "@/services/api/authContext";
 
 // Import the BookingPage
 import BookingPage from "@/pages/BookingPage";
+import TestPage from "@/pages/TestPage";
 
 function App() {
   return (
@@ -37,6 +38,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <BookingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/test"
+              element={
+                <ProtectedRoute>
+                  <TestPage />
                 </ProtectedRoute>
               }
             />
