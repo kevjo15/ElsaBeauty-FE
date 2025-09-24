@@ -1,38 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/services/api/authContext";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import ModeToggle from "@/components/mode-toggle";
 
 // Icons
-import {
-  Menu,
-  Home,
-  Calendar,
-  Scissors,
-  Bell,
-  User,
-  LogOut,
-} from "lucide-react";
+import { Menu, Home, Calendar, Scissors, LogOut } from "lucide-react";
 
 import {
   CategoryWithServices,
@@ -46,7 +18,6 @@ interface MainLayoutProps {
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [categories, setCategories] = useState<CategoryWithServices[]>([]);
 
   useEffect(() => {
@@ -71,260 +42,203 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
   };
 
-  const getInitials = () => {
-    if (user?.firstName && user?.lastName) {
-      return `${user.firstName.charAt(0)}${user.lastName.charAt(
-        0
-      )}`.toUpperCase();
-    }
-    return user?.email ? user.email.substring(0, 2).toUpperCase() : "U";
-  };
-
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header/Navbar */}
-      <header className="border-b sticky top-0 z-40 bg-background">
-        <div className="container flex h-16 items-center px-4">
-          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[240px] sm:w-[300px]">
-              <div className="flex flex-col h-full py-4">
-                <div className="px-3 py-2">
-                  <h2 className="text-lg font-semibold">ElsaBeauty</h2>
-                  <p className="text-sm text-muted-foreground">Beauty Salon</p>
-                </div>
-                <Separator className="my-4" />
-                <nav className="flex-1">
-                  <ul className="mt-2 space-y-1">
+      {/* Header/Navbar */}
+      <div className="navbar bg-base-100 sticky top-0 z-40 shadow-md">
+        <div className="navbar-start">
+          <div className="dropdown">
+            <div tabIndex={0} role="button" className="btn btn-ghost lg:hidden">
+              <Menu className="h-5 w-5" />
+            </div>
+            <ul
+              tabIndex={0}
+              className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52"
+            >
+              <li>
+                <a onClick={() => navigate("/home")}>
+                  <Home className="mr-2 h-4 w-4" />
+                  Dashboard
+                </a>
+              </li>
+              <li>
+                <a>
+                  <Scissors className="mr-2 h-4 w-4" />
+                  Services
+                </a>
+                <ul className="p-2">
+                  {categories.length > 0 ? (
+                    categories.map((category) => (
+                      <li key={category.id}>
+                        <a onClick={() => navigate(`/category/${category.id}`)}>
+                          {category.name}
+                        </a>
+                        {category.services.length > 0 && (
+                          <ul className="p-2">
+                            {category.services.map((service) => (
+                              <li key={service.id}>
+                                <a
+                                  onClick={() =>
+                                    navigate(`/service/${service.id}`)
+                                  }
+                                >
+                                  {service.name}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    ))
+                  ) : (
                     <li>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => navigate("/home")}
-                      >
-                        <Home className="mr-2 h-4 w-4" />
-                        Dashboard
-                      </Button>
+                      <a>No categories available</a>
                     </li>
+                  )}
+                </ul>
+              </li>
+              <li>
+                <a>
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Bookings
+                </a>
+                <ul className="p-2">
+                  <li>
+                    <a onClick={() => navigate("/bookings")}>My Appointments</a>
+                  </li>
+                  <li>
+                    <a onClick={() => navigate("/bookings/history")}>
+                      Booking History
+                    </a>
+                  </li>
+                  <li>
+                    <a onClick={() => navigate("/bookings/new")}>
+                      Schedule New Booking
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              <li>
+                <a onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </a>
+              </li>
+            </ul>
+          </div>
+          <a
+            className="btn btn-ghost text-xl"
+            onClick={() => navigate("/home")}
+          >
+            ElsaBeauty
+          </a>
+        </div>
+        <div className="navbar-center hidden lg:flex">
+          <ul className="menu menu-horizontal px-1">
+            <li>
+              <a onClick={() => navigate("/home")}>
+                <Home className="mr-2 h-4 w-4" />
+                Dashboard
+              </a>
+            </li>
+            <li>
+              <details>
+                <summary>
+                  <Scissors className="mr-2 h-4 w-4" />
+                  Services
+                </summary>
+                <ul className="p-2">
+                  {categories.length > 0 ? (
+                    categories.map((category) => (
+                      <li key={category.id}>
+                        <a onClick={() => navigate(`/category/${category.id}`)}>
+                          {category.name}
+                        </a>
+                        {category.services.length > 0 && (
+                          <ul className="p-2">
+                            {category.services.map((service) => (
+                              <li key={service.id}>
+                                <a
+                                  onClick={() =>
+                                    navigate(`/service/${service.id}`)
+                                  }
+                                >
+                                  {service.name}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    ))
+                  ) : (
                     <li>
-                      <Button variant="ghost" className="w-full justify-start">
-                        <Scissors className="mr-2 h-4 w-4" />
-                        Services
-                      </Button>
+                      <a>No categories available</a>
                     </li>
-                    <li>
-                      <Button variant="ghost" className="w-full justify-start">
-                        <Calendar className="mr-2 h-4 w-4" />
-                        Book Appointment
-                      </Button>
-                    </li>
-                  </ul>
-                </nav>
-                <Separator className="my-4" />
-                <div className="px-3 py-2">
-                  <Button
-                    variant="destructive"
-                    className="w-full"
-                    onClick={handleLogout}
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </Button>
-                </div>
+                  )}
+                </ul>
+              </details>
+            </li>
+            <li>
+              <details>
+                <summary>
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Bookings
+                </summary>
+                <ul className="p-2">
+                  <li>
+                    <a onClick={() => navigate("/bookings")}>My Appointments</a>
+                  </li>
+                  <li>
+                    <a onClick={() => navigate("/bookings/history")}>
+                      Booking History
+                    </a>
+                  </li>
+                  <li>
+                    <a onClick={() => navigate("/bookings/new")}>
+                      Schedule New Booking
+                    </a>
+                  </li>
+                </ul>
+              </details>
+            </li>
+          </ul>
+        </div>
+        <div className="navbar-end">
+          <div className="mr-4">
+            {" "}
+            {/* Added margin-right */}
+            <ModeToggle />
+          </div>
+          <div className="dropdown dropdown-end">
+            <div
+              tabIndex={0}
+              role="button"
+              className="btn btn-circle avatar placeholder"
+            >
+              <div className="bg-gray-300 text-gray-800 rounded-full w-10 h-10 flex items-center justify-center pt-2">
+                {" "}
+                {/* Added pt-1 for slight vertical adjustment */}
+                <span className="text-xl leading-none">
+                  {user?.firstName?.charAt(0) || "U"}
+                </span>
               </div>
-            </SheetContent>
-          </Sheet>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold">ElsaBeauty</h1>
-          </div>
-          <div className="flex flex-1 justify-center">
-            <NavigationMenu>
-              <NavigationMenuList>
-                <NavigationMenuItem>
-                  <NavigationMenuLink
-                    className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-accent/50 data-[state=open]:bg-accent/50"
-                    onClick={() => navigate("/home")}
-                  >
-                    <Home className="mr-2 h-4 w-4" />
-                    Dashboard
-                  </NavigationMenuLink>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger>Services</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="p-4 md:w-[500px] lg:w-[600px]">
-                      {categories.length > 0 ? (
-                        <div className="grid gap-6 md:grid-cols-2">
-                          {categories.map((category) => (
-                            <div key={category.id} className="space-y-2">
-                              <Button
-                                variant="link"
-                                className="p-0 h-auto text-sm font-medium text-primary"
-                                onClick={() =>
-                                  navigate(`/category/${category.id}`)
-                                }
-                              >
-                                {category.name}
-                              </Button>
-                              {category.services.length > 0 ? (
-                                <div className="space-y-1 ml-3 border-l-2 border-primary/10 pl-2">
-                                  {category.services.map((service) => (
-                                    <Button
-                                      key={service.id}
-                                      variant="ghost"
-                                      size="sm"
-                                      className="px-2 py-1 h-auto text-xs justify-start w-full hover:text-primary transition-colors"
-                                      onClick={() =>
-                                        navigate(`/service/${service.id}`)
-                                      }
-                                    >
-                                      {service.name}
-                                    </Button>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-xs text-muted-foreground ml-3">
-                                  No services available
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="p-2 text-sm text-muted-foreground">
-                          No categories available
-                        </div>
-                      )}
-                    </div>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger>Bookings</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="p-4 md:w-[500px] lg:w-[600px]">
-                      <div className="grid gap-6 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Button
-                            variant="link"
-                            className="p-0 h-auto text-sm font-medium text-primary"
-                            onClick={() => navigate("/bookings")}
-                          >
-                            My Appointments
-                          </Button>
-                          <div className="space-y-1 ml-3 border-l-2 border-primary/10 pl-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="px-2 py-1 h-auto text-xs justify-start w-full hover:text-primary transition-colors"
-                              onClick={() => navigate("/bookings")}
-                            >
-                              View My Bookings
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="px-2 py-1 h-auto text-xs justify-start w-full hover:text-primary transition-colors"
-                              onClick={() => navigate("/bookings/history")}
-                            >
-                              Booking History
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Button
-                            variant="link"
-                            className="p-0 h-auto text-sm font-medium text-primary"
-                            onClick={() => navigate("/bookings")}
-                          >
-                            Book New Appointment
-                          </Button>
-                          <div className="space-y-1 ml-3 border-l-2 border-primary/10 pl-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="px-2 py-1 h-auto text-xs justify-start w-full hover:text-primary transition-colors"
-                              onClick={() => navigate("/bookings")}
-                            >
-                              Schedule New Booking
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="px-2 py-1 h-auto text-xs justify-start w-full hover:text-primary transition-colors"
-                              onClick={() => navigate("/bookings")}
-                            >
-                              Check Available Times
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-              </NavigationMenuList>
-            </NavigationMenu>
-          </div>
-          <div className="flex items-center justify-end space-x-4">
-            <nav className="flex items-center space-x-2">
-              <Button variant="ghost" size="icon">
-                <Bell className="h-5 w-5" />
-                <span className="sr-only">Notifications</span>
-              </Button>
-              <ModeToggle />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="relative h-8 w-8 rounded-full"
-                  >
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src="" alt={user?.email || ""} />
-                      <AvatarFallback>{getInitials()}</AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {user?.firstName && user?.lastName
-                          ? `${user.firstName} ${user.lastName}`
-                          : user?.email}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {user?.email}
-                      </p>
-                      {user?.role && (
-                        <div className="mt-1">
-                          <span className="px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
-                            {user.role}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </nav>
+            </div>
+            <ul
+              tabIndex={0}
+              className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52"
+            >
+              <li>
+                <a onClick={() => navigate("/profile")}>Profile</a>
+              </li>
+              <li>
+                <a onClick={handleLogout}>Logout</a>
+              </li>
+            </ul>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Main Content */}
       <main className="flex-1 p-6">{children}</main>
