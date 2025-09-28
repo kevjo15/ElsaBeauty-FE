@@ -1,16 +1,4 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
-  theme: { extend: {} },
-  plugins: [require("daisyui")],
-  daisyui: {
-    themes: ["cupcake", "dark"],
-    darkTheme: "dark",
-    base: true,
-    styled: true,
-    utils: true,
-    prefix: "",
-    logs: true,
-    themeRoot: "html", // 👈 viktigt: matchar ditt <html data-theme="...">
-  },
+  darkMode: ["class"], // bara om du vill använda dark: utilities via class
 };
