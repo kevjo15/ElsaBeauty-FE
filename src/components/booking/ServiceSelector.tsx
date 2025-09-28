@@ -1,21 +1,15 @@
 import React from "react";
 import { Service } from "@/services/api/apiService";
-import DaisyUICalendar from "@/components/DaisyUICalendar";
-
 interface ServiceSelectorProps {
   services: Service[];
   selectedService: Service | null;
   onServiceChange: (serviceId: string) => void;
-  selectedDate: Date | undefined;
-  onDateChange: (date: Date | undefined) => void;
 }
 
 const ServiceSelector: React.FC<ServiceSelectorProps> = ({
   services,
   selectedService,
   onServiceChange,
-  selectedDate,
-  onDateChange,
 }) => {
   return (
     <div className="card bg-base-100 shadow-xl">
@@ -55,14 +49,6 @@ const ServiceSelector: React.FC<ServiceSelectorProps> = ({
               </div>
             </div>
           )}
-
-          <div className="space-y-2">
-            <DaisyUICalendar
-              selectedDate={selectedDate}
-              onDateChange={onDateChange}
-              disabled={!selectedService}
-            />
-          </div>
         </div>
       </div>
     </div>
