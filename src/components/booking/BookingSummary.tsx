@@ -6,8 +6,6 @@ interface BookingSummaryProps {
   selectedService: Service | null;
   selectedDate: Date | undefined;
   selectedSlot: TimeSlot | null;
-  onBookingSubmit: () => void;
-  loading: boolean;
   formatTimeSlot: (slot: TimeSlot) => string;
 }
 
@@ -15,8 +13,6 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
   selectedService,
   selectedDate,
   selectedSlot,
-  onBookingSubmit,
-  loading,
   formatTimeSlot,
 }) => {
   if (!selectedSlot || !selectedService || !selectedDate) {
@@ -33,34 +29,20 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
             <dd className="font-medium">{selectedService.name}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-base-content">Date:</dt>
+            <dt className="text-base-content">Datum:</dt>
             <dd className="font-medium">{format(selectedDate, "PPP")}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-base-content">Time:</dt>
+            <dt className="text-base-content">Tid:</dt>
             <dd className="font-medium">{formatTimeSlot(selectedSlot)}</dd>
           </div>
           <div className="flex justify-between border-t pt-3 mt-2">
-            <dt className="text-base-content font-medium">Price:</dt>
+            <dt className="text-base-content font-medium">Pris:</dt>
             <dd className="font-bold text-primary">
               {selectedService.price} kr
             </dd>
           </div>
         </dl>
-        <button
-          className="btn btn-primary w-full btn-lg mt-4"
-          onClick={onBookingSubmit}
-          disabled={loading}
-        >
-          {loading ? (
-            <>
-              <span className="loading loading-spinner mr-2"></span>
-              Processing...
-            </>
-          ) : (
-            "Confirm Booking"
-          )}
-        </button>
       </div>
     </div>
   );
