@@ -13,6 +13,7 @@ import ServiceSelector from "@/components/booking/ServiceSelector";
 import TimeSlotSelector from "@/components/booking/TimeSlotSelector";
 import BookingSummary from "@/components/booking/BookingSummary";
 import DateSelector from "@/components/booking/DateSelector";
+import BookingConfirmationModal from "@/components/booking/BookingConfirmationModal";
 import { useServices } from "@/hooks/useServices";
 import { useTimeSlots } from "@/hooks/useTimeSlots";
 
@@ -40,6 +41,7 @@ const BookingPage: React.FC = () => {
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [step, setStep] = useState(1);
+  const [isModalOpen, setIsModalOpen] = useState(false); // Lägg till state för modal
 
   const handleServiceChange = (serviceId: string) => {
     const service = services.find((s) => s.id === serviceId) || null;
@@ -56,9 +58,21 @@ const BookingPage: React.FC = () => {
     setSelectedSlot(slot);
   };
 
-  const handleBookingSubmit = async () => {
+  const handleOpenModal = () => {
+    if (!selectedService || !selectedDate || !selectedSlot) {
+      setBookingError("Vänligen välj tjänst, datum och tid.");
+      return;
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleConfirmBooking = async () => {
     if (!user || !selectedService || !selectedSlot) {
-      setBookingError("Please select a service and time slot.");
+      setBookingError("Vänligen välj tjänst, datum och tid.");
       return;
     }
 
@@ -75,25 +89,32 @@ const BookingPage: React.FC = () => {
       };
 
       await createBooking(bookingData);
-      setSuccess("Booking created successfully!");
+      setSuccess("Bokning skapad framgångsrikt!");
 
       setSelectedService(null);
       setSelectedDate(undefined);
       setSelectedSlot(null);
 
-      setTimeout(() => {
-        navigate("/bookings");
-      }, 2000);
+      navigate("/booking-confirmation", {
+        state: {
+          bookingDetails: {
+            service: selectedService,
+            date: selectedDate,
+            slot: selectedSlot,
+          },
+        },
+      });
     } catch (error: unknown) {
       console.error("Error creating booking:", error);
       const apiError = error as ApiError;
       if (apiError.response?.data?.error) {
         setBookingError(apiError.response.data.error);
       } else {
-        setBookingError("Failed to create booking. Please try again.");
+        setBookingError("Misslyckades med att skapa bokning. Försök igen.");
       }
     } finally {
       setBookingLoading(false);
+      setIsModalOpen(false); // Stäng modalen efter bekräftelse/fel
     }
   };
 
@@ -179,13 +200,25 @@ const BookingPage: React.FC = () => {
                 selectedService={selectedService}
                 selectedDate={selectedDate}
                 selectedSlot={selectedSlot}
-                onBookingSubmit={handleBookingSubmit}
-                loading={bookingLoading}
                 formatTimeSlot={formatTimeSlot}
               />
               <div className="flex justify-between mt-4">
                 <button className="btn btn-ghost" onClick={() => setStep(2)}>
                   Tillbaka
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleOpenModal} // Öppna modalen istället för att skicka direkt
+                  disabled={!selectedSlot || bookingLoading}
+                >
+                  {bookingLoading ? (
+                    <>
+                      <span className="loading loading-spinner mr-2"></span>
+                      Bekräftar...
+                    </>
+                  ) : (
+                    "Bekräfta bokning"
+                  )}
                 </button>
               </div>
             </>
@@ -205,6 +238,17 @@ const BookingPage: React.FC = () => {
             <p>{success}</p>
           </div>
         )}
+
+        <BookingConfirmationModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          onConfirm={handleConfirmBooking}
+          selectedService={selectedService}
+          selectedDate={selectedDate}
+          selectedSlot={selectedSlot}
+          loading={bookingLoading}
+          formatTimeSlot={formatTimeSlot}
+        />
       </div>
     </MainLayout>
   );
