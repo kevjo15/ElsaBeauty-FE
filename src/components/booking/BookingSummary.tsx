@@ -1,13 +1,12 @@
 import React from "react";
 import { Service, TimeSlot } from "@/services/api/apiService";
 import { format } from "date-fns";
+import { sv } from "date-fns/locale";
 
 interface BookingSummaryProps {
   selectedService: Service | null;
   selectedDate: Date | undefined;
   selectedSlot: TimeSlot | null;
-  onBookingSubmit: () => void;
-  loading: boolean;
   formatTimeSlot: (slot: TimeSlot) => string;
 }
 
@@ -15,8 +14,6 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
   selectedService,
   selectedDate,
   selectedSlot,
-  onBookingSubmit,
-  loading,
   formatTimeSlot,
 }) => {
   if (!selectedSlot || !selectedService || !selectedDate) {
@@ -24,43 +21,33 @@ const BookingSummary: React.FC<BookingSummaryProps> = ({
   }
 
   return (
-    <div className="card bg-base-100 shadow-xl">
-      <div className="card-body">
-        <h2 className="card-title">Booking Summary</h2>
+    <div className="card bg-base-200 shadow-xl border-1 border-base-300">
+      <div className="card-body p-6">
+        <h2 className="card-title text-l font-bold mb-4">
+          Bokningssammanfattning
+        </h2>
         <dl className="mt-3 grid grid-cols-1 gap-y-3 text-sm">
           <div className="flex justify-between">
-            <dt className="text-base-content">Service:</dt>
+            <dt className="text-base-content">Behandling:</dt>
             <dd className="font-medium">{selectedService.name}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-base-content">Date:</dt>
-            <dd className="font-medium">{format(selectedDate, "PPP")}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-base-content">Time:</dt>
-            <dd className="font-medium">{formatTimeSlot(selectedSlot)}</dd>
-          </div>
-          <div className="flex justify-between border-t pt-3 mt-2">
-            <dt className="text-base-content font-medium">Price:</dt>
-            <dd className="font-bold text-primary">
+            <dt className="text-base-content">Pris:</dt>
+            <dd className="font-bold text-secondary">
               {selectedService.price} kr
             </dd>
           </div>
+          <div className="flex justify-between">
+            <dt className="text-base-content">Datum:</dt>
+            <dd className="font-medium">
+              {format(selectedDate, "EEEE d MMMM yyyy", { locale: sv })}
+            </dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-base-content">Tid:</dt>
+            <dd className="font-medium">{formatTimeSlot(selectedSlot)}</dd>
+          </div>
         </dl>
-        <button
-          className="btn btn-primary w-full btn-lg mt-4"
-          onClick={onBookingSubmit}
-          disabled={loading}
-        >
-          {loading ? (
-            <>
-              <span className="loading loading-spinner mr-2"></span>
-              Processing...
-            </>
-          ) : (
-            "Confirm Booking"
-          )}
-        </button>
       </div>
     </div>
   );

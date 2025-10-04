@@ -1,20 +1,225 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 @import "tailwindcss";
+@tailwind utilities;
 
-/* Aktivera daisyUI och sätt teman (cupcake ljust, dark vid prefers-dark) */
 @plugin "daisyui" {
-  themes: cupcake --default, dark --prefersdark;
-  root: "html"; /* vi sätter data-theme på <html> */
-  logs: true;
+  themes: all;
 }
 
 @layer base {
   * {
-    @apply border-base-200; /* funkar nu när daisyUI är laddat via plugin */
+    border-color: oklch(var(--b2));
   }
   body {
-    @apply font-sans antialiased bg-base-100 text-base-content;
+    font-family: sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: oklch(var(--b1));
+    color: oklch(var(--bc));
   }
+}
+
+@plugin "daisyui/theme" {
+  name: "salon-rose";
+  default: true;
+  prefersdark: false;
+  color-scheme: "light";
+
+  /* Varm elfenbensbas + mjuk kontrast */
+  --color-base-100: oklch(98% 0.015 90); /* Ivory background */
+  --color-base-200: oklch(95% 0.02 90);
+  --color-base-300: oklch(90% 0.03 90);
+  --color-base-content: oklch(26% 0.03 50); /* Soft charcoal text */
+
+  /* Varumärkesfärger */
+  --color-primary: oklch(70% 0.18 22); /* Blush rose */
+  --color-primary-content: oklch(98% 0.01 22);
+
+  --color-secondary: oklch(65% 0.12 280); /* Soft lavender */
+  --color-secondary-content: oklch(98% 0.01 280);
+
+  --color-accent: oklch(78% 0.12 85); /* Gentle gold */
+  --color-accent-content: oklch(22% 0.05 85);
+
+  /* Neutrals */
+  --color-neutral: oklch(30% 0.03 50); /* Charcoal for surfaces */
+  --color-neutral-content: oklch(98% 0.015 90);
+
+  /* Statusfärger (harmoniserade) */
+  --color-info: oklch(72% 0.14 215);
+  --color-info-content: oklch(98% 0.015 215);
+
+  --color-success: oklch(70% 0.14 180);
+  --color-success-content: oklch(98% 0.014 180);
+
+  --color-warning: oklch(80% 0.16 85); /* Golden warning to match accent */
+  --color-warning-content: oklch(22% 0.05 85);
+
+  --color-error: oklch(60% 0.22 20); /* Rosy red */
+  --color-error-content: oklch(97% 0.014 20);
+
+  /* Forms & känsla */
+  --radius-selector: 1.25rem; /* stora chip/knappar */
+  --radius-field: 0.5rem; /* inputs */
+  --radius-box: 1rem; /* kort/dialoger */
+
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "salon-emerald";
+  default: false;
+  prefersdark: false;
+  color-scheme: "light";
+
+  --color-base-100: oklch(98% 0.012 130); /* porslin */
+  --color-base-200: oklch(95% 0.018 130);
+  --color-base-300: oklch(90% 0.024 130);
+  --color-base-content: oklch(27% 0.03 140);
+
+  --color-primary: oklch(72% 0.14 160); /* emerald */
+  --color-primary-content: oklch(98% 0.01 160);
+
+  --color-secondary: oklch(78% 0.07 120); /* sage */
+  --color-secondary-content: oklch(26% 0.03 120);
+
+  --color-accent: oklch(78% 0.12 85); /* mild guld */
+  --color-accent-content: oklch(22% 0.05 85);
+
+  --color-neutral: oklch(32% 0.025 120);
+  --color-neutral-content: oklch(98% 0.012 130);
+
+  --color-info: oklch(74% 0.13 230);
+  --color-success: oklch(70% 0.14 170);
+  --color-warning: oklch(78% 0.15 85);
+  --color-error: oklch(60% 0.21 20);
+}
+
+@plugin "daisyui/theme" {
+  name: "salon-noir-gold";
+  default: false;
+  prefersdark: true;
+  color-scheme: "dark";
+
+  /* Djup bas med varm ton och hög läsbarhet */
+  --color-base-100: oklch(15% 0.012 260); /* near-black */
+  --color-base-200: oklch(20% 0.014 260);
+  --color-base-300: oklch(26% 0.016 260);
+  --color-base-content: oklch(95% 0.015 90); /* ljus elfenben */
+
+  /* Behåll varumärkesidentiteten men något mer mättnad */
+  --color-primary: oklch(78% 0.12 85); /* guld */
+  --color-primary-content: oklch(20% 0.05 85);
+
+  --color-secondary: oklch(68% 0.13 22); /* rosé-guld hint */
+  --color-secondary-content: oklch(18% 0.04 22);
+
+  --color-accent: oklch(70% 0.15 300); /* amethyst */
+  --color-accent-content: oklch(18% 0.04 300);
+
+  --color-neutral: oklch(22% 0.014 260);
+  --color-neutral-content: oklch(94% 0.012 90);
+
+  --color-info: oklch(74% 0.13 230);
+  --color-success: oklch(68% 0.145 180);
+  --color-warning: oklch(78% 0.165 85);
+  --color-error: oklch(58% 0.23 20);
+
+  --radius-selector: 1.25rem;
+  --radius-field: 0.5rem;
+  --radius-box: 1rem;
+}
+
+@plugin "daisyui/theme" {
+  name: "salon-sand";
+  default: false;
+  prefersdark: false;
+  color-scheme: "light";
+
+  --color-base-100: oklch(97% 0.01 85); /* cream */
+  --color-base-200: oklch(93% 0.018 85);
+  --color-base-300: oklch(88% 0.024 85);
+  --color-base-content: oklch(30% 0.03 50);
+
+  --color-primary: oklch(72% 0.09 75); /* sand-beige */
+  --color-primary-content: oklch(22% 0.03 75);
+
+  --color-secondary: oklch(63% 0.09 35); /* cappuccino */
+  --color-secondary-content: oklch(96% 0.012 90);
+
+  --color-accent: oklch(78% 0.12 85);
+  --color-accent-content: oklch(22% 0.05 85);
+}
+
+@plugin "daisyui/theme" {
+  name: "salon-blush";
+  default: false;
+  prefersdark: false;
+  color-scheme: "light";
+
+  --color-base-100: oklch(98% 0.012 30); /* Porcelain */
+  --color-base-200: oklch(95% 0.018 30);
+  --color-base-300: oklch(90% 0.022 30);
+  --color-base-content: oklch(30% 0.03 40);
+
+  --color-primary: oklch(75% 0.16 15); /* Blush pink */
+  --color-primary-content: oklch(98% 0.01 15);
+
+  --color-secondary: oklch(68% 0.11 340); /* Mauve */
+  --color-secondary-content: oklch(96% 0.01 340);
+
+  --color-accent: oklch(80% 0.12 85); /* Champagne gold */
+  --color-accent-content: oklch(26% 0.05 85);
+
+  --color-neutral: oklch(28% 0.025 40); /* Charcoal */
+  --color-neutral-content: oklch(98% 0.012 95);
+}
+@plugin "daisyui/theme" {
+  name: "salon-olive";
+  default: false;
+  prefersdark: false;
+  color-scheme: "light";
+
+  --color-base-100: oklch(97% 0.01 120); /* Soft cream */
+  --color-base-200: oklch(94% 0.016 120);
+  --color-base-300: oklch(90% 0.022 120);
+  --color-base-content: oklch(32% 0.03 140);
+
+  --color-primary: oklch(72% 0.13 115); /* Olive green */
+  --color-primary-content: oklch(98% 0.01 115);
+
+  --color-secondary: oklch(68% 0.09 95); /* Sage */
+  --color-secondary-content: oklch(26% 0.03 95);
+
+  --color-accent: oklch(80% 0.1 85); /* Light sand gold */
+  --color-accent-content: oklch(30% 0.05 85);
+
+  --color-neutral: oklch(30% 0.02 120); /* Earth charcoal */
+  --color-neutral-content: oklch(96% 0.01 120);
+}
+@plugin "daisyui/theme" {
+  name: "salon-ivory-gold";
+  default: false;
+  prefersdark: false;
+  color-scheme: "light";
+
+  --color-base-100: oklch(99% 0.008 90); /* Ivory white */
+  --color-base-200: oklch(96% 0.012 90);
+  --color-base-300: oklch(92% 0.016 90);
+  --color-base-content: oklch(28% 0.03 50);
+
+  --color-primary: oklch(82% 0.12 85); /* Gold */
+  --color-primary-content: oklch(22% 0.04 85);
+
+  --color-secondary: oklch(70% 0.12 30); /* Rose beige */
+  --color-secondary-content: oklch(98% 0.01 30);
+
+  --color-accent: oklch(75% 0.1 260); /* Lavender accent */
+  --color-accent-content: oklch(22% 0.03 260);
+
+  --color-neutral: oklch(32% 0.025 50);
+  --color-neutral-content: oklch(98% 0.015 95);
 }
