@@ -3,6 +3,7 @@ import { useAuth } from "@/services/api/authContext";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "@/components/layout/main-layout";
 import { format } from "date-fns";
+import { sv } from "date-fns/locale"; // Importera svensk locale
 import {
   Service,
   TimeSlot,
@@ -14,7 +15,7 @@ import TimeSlotSelector from "@/components/booking/TimeSlotSelector";
 import BookingSummary from "@/components/booking/BookingSummary";
 import DateSelector from "@/components/booking/DateSelector";
 import BookingConfirmationModal from "@/components/booking/BookingConfirmationModal";
-import { useServices } from "@/hooks/useServices";
+import { useServicesWithImages } from "@/hooks/useServicesWithImages";
 import { useTimeSlots } from "@/hooks/useTimeSlots";
 
 interface ApiError {
@@ -28,7 +29,7 @@ interface ApiError {
 const BookingPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { services, error: servicesError } = useServices();
+  const { services, error: servicesError } = useServicesWithImages();
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const {
@@ -126,18 +127,28 @@ const BookingPage: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="container mx-auto py-6 max-w-2xl">
-        <h1 className="text-3xl font-bold mb-6 text-center">Boka en tid</h1>
-
+      <div className="container mx-auto py-6 max-w-4xl">
         {/* Processbar */}
-        <ul className="steps steps-horizontal w-full mb-8">
-          <li className={`step ${step >= 1 ? "step-primary" : ""}`}>
+        <ul className="steps steps-horizontal w-full mb-12">
+          <li
+            className={`step text-base-content font-medium transition-all duration-300 ease-in-out ${
+              step >= 1 ? "step-primary" : ""
+            }`}
+          >
             Välj behandling
           </li>
-          <li className={`step ${step >= 2 ? "step-primary" : ""}`}>
+          <li
+            className={`step text-base-content font-medium transition-all duration-300 ease-in-out ${
+              step >= 2 ? "step-primary" : ""
+            }`}
+          >
             Välj datum
           </li>
-          <li className={`step ${step >= 3 ? "step-primary" : ""}`}>
+          <li
+            className={`step text-base-content font-medium transition-all duration-300 ease-in-out ${
+              step >= 3 ? "step-primary" : ""
+            }`}
+          >
             Välj tid
           </li>
         </ul>
@@ -149,6 +160,7 @@ const BookingPage: React.FC = () => {
                 services={services}
                 selectedService={selectedService}
                 onServiceChange={handleServiceChange}
+                title="Välj din behandling"
               />
               <div className="flex justify-end mt-4">
                 <button
@@ -168,6 +180,8 @@ const BookingPage: React.FC = () => {
                 selectedDate={selectedDate}
                 onDateChange={handleDateChange}
                 disabled={!selectedService}
+                title="Välj datum"
+                selectedService={selectedService}
               />
               <div className="flex justify-between mt-4">
                 <button className="btn btn-ghost" onClick={() => setStep(1)}>
@@ -194,6 +208,18 @@ const BookingPage: React.FC = () => {
                 selectedSlot={selectedSlot}
                 onSlotSelect={handleSlotSelect}
                 formatTimeSlot={formatTimeSlot}
+                title="Välj tid"
+                subtitle={
+                  selectedDate
+                    ? `Lediga tider för ${format(
+                        selectedDate,
+                        "EEEE d MMMM yyyy",
+                        {
+                          locale: sv,
+                        }
+                      )}`
+                    : ""
+                }
               />
 
               <BookingSummary

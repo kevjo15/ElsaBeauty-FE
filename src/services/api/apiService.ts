@@ -6,6 +6,10 @@ import {
   USER_NAME_URL,
   GET_AVAILABLE_SLOTS_URL,
   CREATE_BOOKING_URL,
+  GET_ALL_SERVICES_URL,
+  GET_ALL_SERVICES_WITH_SAS_URL,
+  GET_ALL_CATEGORIES_URL,
+  GET_CATEGORIES_WITH_SERVICES_URL,
 } from "@/services/api/apiUrl";
 import { decodeAccessToken } from "./authService";
 
@@ -117,6 +121,7 @@ export interface Service {
   description: string;
   duration: string;
   price: number;
+  imageUrl: string;
 }
 
 export interface Category {
@@ -166,7 +171,7 @@ export interface BookingResponse {
 // Service API functions
 export const getAllServices = async (): Promise<Service[]> => {
   try {
-    const response = await api.get<Service[]>("Service/GetAllServices");
+    const response = await api.get<Service[]>(GET_ALL_SERVICES_URL);
     return response.data;
   } catch (error) {
     console.error("Failed to fetch services:", error);
@@ -174,11 +179,20 @@ export const getAllServices = async (): Promise<Service[]> => {
   }
 };
 
+export const getAllServicesWithSas = async (): Promise<Service[]> => {
+  try {
+    const response = await api.get<Service[]>(GET_ALL_SERVICES_WITH_SAS_URL);
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch services with SAS:", error);
+    return [];
+  }
+};
+
 // Category API functions
 export const getAllCategories = async (): Promise<Category[]> => {
   try {
-    // Use the correct endpoint URL provided by the user
-    const response = await api.get<Category[]>("categories/GetAllCategories");
+    const response = await api.get<Category[]>(GET_ALL_CATEGORIES_URL);
     return response.data;
   } catch (error) {
     console.error("Failed to fetch categories:", error);
@@ -201,9 +215,8 @@ export const getCategoriesWithServices = async (): Promise<
   CategoryWithServices[]
 > => {
   try {
-    // Use the correct endpoint URL provided by the user
     const response = await api.get<CategoryWithServices[]>(
-      "categories/GetCategoriesWithServices"
+      GET_CATEGORIES_WITH_SERVICES_URL
     );
     return response.data;
   } catch (error) {
