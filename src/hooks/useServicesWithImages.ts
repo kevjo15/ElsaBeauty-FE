@@ -1,0 +1,25 @@
+import { useState, useEffect } from "react";
+import { Service, getAllServicesWithSas } from "@/services/api/apiService";
+
+export const useServicesWithImages = () => {
+  const [services, setServices] = useState<Service[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const servicesData = await getAllServicesWithSas();
+        setServices(servicesData);
+      } catch (error) {
+        console.error("Error fetching services with images:", error);
+        setError(
+          "Failed to load services with images. Please try again later."
+        );
+      }
+    };
+
+    fetchServices();
+  }, []);
+
+  return { services, error };
+};
