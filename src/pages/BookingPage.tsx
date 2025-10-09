@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/services/api/authContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import MainLayout from "@/components/layout/main-layout";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale"; // Importera svensk locale
@@ -29,6 +29,7 @@ interface ApiError {
 const BookingPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { services, error: servicesError } = useServicesWithImages();
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -43,6 +44,27 @@ const BookingPage: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [step, setStep] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false); // Lägg till state för modal
+
+  // If coming from a Service details page, preselect service and jump to step 2 (choose date)
+  useEffect(() => {
+    const state = location.state as {
+      preselectedServiceId?: string;
+      startAtStep?: number;
+    } | null;
+    if (state?.preselectedServiceId && services.length > 0) {
+      const pre =
+        services.find((s) => s.id === state.preselectedServiceId) || null;
+      if (pre) {
+        setSelectedService(pre);
+        setSelectedSlot(null);
+        setStep(
+          state.startAtStep && state.startAtStep >= 1 && state.startAtStep <= 3
+            ? state.startAtStep
+            : 2
+        );
+      }
+    }
+  }, [location.state, services]);
 
   const handleServiceChange = (serviceId: string) => {
     const service = services.find((s) => s.id === serviceId) || null;
