@@ -18,6 +18,8 @@ export const GET_ALL_SERVICES_WITH_SAS_URL = `${API_BASE_URL}/Service/GetAllServ
 export const GET_ALL_CATEGORIES_URL = `${API_BASE_URL}/categories/GetAllCategories`;
 export const GET_CATEGORIES_WITH_SERVICES_URL = `${API_BASE_URL}/categories/GetCategoriesWithServices`;
 
-// Booking endpoints
+/* Booking endpoints */
 export const CREATE_BOOKING_URL = `${API_BASE_URL}/Booking/CreateBooking`;
 export const GET_AVAILABLE_SLOTS_URL = `${API_BASE_URL}/Booking/available-time-slots`;
+export const GET_MY_BOOKINGS_URL = `${API_BASE_URL}/Booking/GetBookingsByUserId/MyBookings`;
+export const CANCEL_BOOKING_URL = `${API_BASE_URL}/Booking/CancelBooking`;

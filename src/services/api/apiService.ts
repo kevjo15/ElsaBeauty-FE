@@ -10,6 +10,8 @@ import {
   GET_ALL_SERVICES_WITH_SAS_URL,
   GET_ALL_CATEGORIES_URL,
   GET_CATEGORIES_WITH_SERVICES_URL,
+  GET_MY_BOOKINGS_URL,
+  CANCEL_BOOKING_URL,
 } from "@/services/api/apiUrl";
 import { decodeAccessToken } from "./authService";
 
@@ -165,7 +167,7 @@ export interface BookingResponse {
   serviceId: string;
   startTime: string;
   endTime: string;
-  status: string;
+  status?: string;
 }
 
 // Service API functions
@@ -288,5 +290,116 @@ export const createBooking = async (
   } catch (error) {
     console.error("Failed to create booking:", error);
     throw error;
+  }
+};
+
+/* Bookings - fetch my bookings */
+export const getMyBookings = async (): Promise<BookingResponse[]> => {
+  try {
+    const getAccessToken = () =>
+      document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("accessToken="))
+        ?.split("=")[1];
+
+    let accessToken = getAccessToken();
+
+    // First attempt using fetch (avoid axios interceptor to prevent 415 on refresh)
+    let res = await fetch(GET_MY_BOOKINGS_URL, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken ?? ""}`,
+      },
+      credentials: "include",
+    });
+
+    // If unauthorized, try cookie-based refresh without JSON content-type, then retry
+    if (res.status === 401) {
+      const refreshRes = await fetch(REFRESH_TOKEN_URL, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (refreshRes.ok) {
+        const data = (await refreshRes.json()) as { AccessToken?: string };
+        if (data?.AccessToken) {
+          setCookie("accessToken", data.AccessToken, 1);
+          accessToken = data.AccessToken;
+        }
+        res = await fetch(GET_MY_BOOKINGS_URL, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${accessToken ?? ""}`,
+          },
+          credentials: "include",
+        });
+      }
+    }
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("getMyBookings error:", res.status, text);
+      return [];
+    }
+
+    const data = (await res.json()) as BookingResponse[];
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("Failed to fetch my bookings:", error);
+    return [];
+  }
+};
+
+/* Bookings - cancel by id */
+export const cancelBooking = async (bookingId: string): Promise<boolean> => {
+  try {
+    const getAccessToken = () =>
+      document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("accessToken="))
+        ?.split("=")[1];
+
+    let accessToken = getAccessToken();
+
+    // First attempt
+    let res = await fetch(`${CANCEL_BOOKING_URL}/${bookingId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${accessToken ?? ""}`,
+      },
+      credentials: "include",
+    });
+
+    // If unauthorized, refresh and retry
+    if (res.status === 401) {
+      const refreshRes = await fetch(REFRESH_TOKEN_URL, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (refreshRes.ok) {
+        const data = (await refreshRes.json()) as { AccessToken?: string };
+        if (data?.AccessToken) {
+          setCookie("accessToken", data.AccessToken, 1);
+          accessToken = data.AccessToken;
+        }
+        res = await fetch(`${CANCEL_BOOKING_URL}/${bookingId}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${accessToken ?? ""}`,
+          },
+          credentials: "include",
+        });
+      }
+    }
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("cancelBooking error:", res.status, text);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Failed to cancel booking:", error);
+    return false;
   }
 };
