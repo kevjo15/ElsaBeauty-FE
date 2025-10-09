@@ -4,6 +4,7 @@ import { Service, getAllServicesWithSas } from "@/services/api/apiService";
 export const useServicesWithImages = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -15,11 +16,13 @@ export const useServicesWithImages = () => {
         setError(
           "Failed to load services with images. Please try again later."
         );
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchServices();
   }, []);
 
-  return { services, error };
+  return { services, error, loading };
 };
