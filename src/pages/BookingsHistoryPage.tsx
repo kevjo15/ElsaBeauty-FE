@@ -11,8 +11,8 @@ import {
 import {
   getMyBookings,
   cancelBooking,
-  BookingResponse,
-} from "@/services/api/apiService";
+  type BookingResponse,
+} from "@/services/api";
 import { useServicesWithImages } from "@/hooks/useServicesWithImages";
 import { format, isAfter } from "date-fns";
 import { sv } from "date-fns/locale";

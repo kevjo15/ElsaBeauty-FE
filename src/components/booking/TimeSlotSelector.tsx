@@ -1,5 +1,5 @@
 import React from "react";
-import { TimeSlot } from "@/services/api/apiService";
+import { type TimeSlot } from "@/services/api";
 
 interface TimeSlotSelectorProps {
   loading: boolean;

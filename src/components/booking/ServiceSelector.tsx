@@ -1,5 +1,5 @@
 import React from "react";
-import { Service } from "@/services/api/apiService";
+import { type Service } from "@/services/api";
 import { Clock } from "lucide-react";
 
 interface ServiceSelectorProps {

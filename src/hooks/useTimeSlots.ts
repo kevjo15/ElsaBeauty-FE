@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
-import { TimeSlot, getAvailableTimeSlots } from "@/services/api/apiService";
+import {
+  getAvailableTimeSlots,
+  type TimeSlot,
+} from "@/services/api";
 import { format } from "date-fns";
 
 export const useTimeSlots = (
