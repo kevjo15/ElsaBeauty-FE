@@ -1,5 +1,5 @@
 import React from "react";
-import { Service, TimeSlot } from "@/services/api/apiService";
+import { type Service, type TimeSlot } from "@/services/api";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 
