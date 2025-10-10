@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Service, getAllServices } from "@/services/api/apiService";
+import { getAllServices, type Service } from "@/services/api";
 
 export const useServices = () => {
   const [services, setServices] = useState<Service[]>([]);
