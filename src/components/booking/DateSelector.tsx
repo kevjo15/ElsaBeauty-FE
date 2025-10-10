@@ -1,6 +1,6 @@
 import React from "react";
 import DaisyUICalendar from "@/components/DaisyUICalendar";
-import { Service } from "@/services/api/apiService";
+import { type Service } from "@/services/api";
 
 interface DateSelectorProps {
   selectedDate: Date | undefined;

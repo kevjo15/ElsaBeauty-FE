@@ -5,11 +5,11 @@ import MainLayout from "@/components/layout/main-layout";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale"; // Importera svensk locale
 import {
-  Service,
-  TimeSlot,
-  BookingRequest,
   createBooking,
-} from "@/services/api/apiService";
+  type Service,
+  type TimeSlot,
+  type BookingRequest,
+} from "@/services/api";
 import ServiceSelector from "@/components/booking/ServiceSelector";
 import TimeSlotSelector from "@/components/booking/TimeSlotSelector";
 import BookingSummary from "@/components/booking/BookingSummary";
