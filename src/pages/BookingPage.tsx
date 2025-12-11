@@ -17,6 +17,7 @@ import DateSelector from "@/components/booking/DateSelector";
 import BookingConfirmationModal from "@/components/booking/BookingConfirmationModal";
 import { useServicesWithImages } from "@/hooks/useServicesWithImages";
 import { useTimeSlots } from "@/hooks/useTimeSlots";
+import { CheckCircle2 } from "lucide-react";
 
 interface ApiError {
   response?: {
@@ -25,6 +26,12 @@ interface ApiError {
     };
   };
 }
+
+const stepsConfig = [
+  { id: 1, label: "Välj behandling" },
+  { id: 2, label: "Välj datum" },
+  { id: 3, label: "Välj tid" },
+];
 
 const BookingPage: React.FC = () => {
   const { user } = useAuth();
@@ -79,6 +86,20 @@ const BookingPage: React.FC = () => {
 
   const handleSlotSelect = (slot: TimeSlot) => {
     setSelectedSlot(slot);
+  };
+
+  const canNavigateToStep = (targetStep: number) => {
+    if (targetStep <= 1) return true;
+    if (targetStep === 2) return !!selectedService;
+    if (targetStep === 3) return !!selectedService && !!selectedDate;
+    return false;
+  };
+
+  const handleStepNavigation = (targetStep: number) => {
+    if (step === targetStep) return;
+    if (canNavigateToStep(targetStep)) {
+      setStep(targetStep);
+    }
   };
 
   const handleOpenModal = () => {
@@ -149,31 +170,70 @@ const BookingPage: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="container mx-auto py-6 max-w-4xl">
-        {/* Processbar */}
-        <ul className="steps steps-horizontal w-full mb-12">
-          <li
-            className={`step text-base-content font-medium transition-all duration-300 ease-in-out ${
-              step >= 1 ? "step-primary" : ""
-            }`}
-          >
-            Välj behandling
-          </li>
-          <li
-            className={`step text-base-content font-medium transition-all duration-300 ease-in-out ${
-              step >= 2 ? "step-primary" : ""
-            }`}
-          >
-            Välj datum
-          </li>
-          <li
-            className={`step text-base-content font-medium transition-all duration-300 ease-in-out ${
-              step >= 3 ? "step-primary" : ""
-            }`}
-          >
-            Välj tid
-          </li>
-        </ul>
+      <div className="container mx-auto max-w-4xl py-6">
+        {/* Stegindikator */}
+        <div className="mb-12 mr-14 px-4 sm:px-6">
+          <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 sm:gap-6">
+            {stepsConfig.map((item, index) => {
+              const isActive = step === item.id;
+              const isCompleted = step > item.id;
+              const isClickable = canNavigateToStep(item.id) && step >= item.id;
+              const circleClasses = [
+                "relative flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold transition-all duration-300 sm:h-11 sm:w-11",
+                isActive
+                  ? "border-primary bg-primary text-primary-content shadow-lg shadow-primary/30"
+                  : isCompleted
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-base-300 bg-base-100 text-base-content/50",
+                isClickable
+                  ? "cursor-pointer hover:border-primary"
+                  : "cursor-default",
+              ].join(" ");
+              const labelClasses = [
+                "mt-3 text-center text-sm font-medium transition-colors",
+                isActive
+                  ? "text-base-content"
+                  : isCompleted
+                  ? "text-base-content/80"
+                  : "text-base-content/60",
+              ].join(" ");
+
+              return (
+                <React.Fragment key={item.id}>
+                  <div className="flex min-w-0 flex-col items-center">
+                    <button
+                      type="button"
+                      data-step={item.id}
+                      onClick={() => handleStepNavigation(item.id)}
+                      disabled={!isClickable}
+                      className={circleClasses}
+                    >
+                      {isCompleted ? (
+                        <span className="flex h-5 w-5 items-center justify-center">
+                          <CheckCircle2 className="h-4 w-4" />
+                        </span>
+                      ) : (
+                        item.id
+                      )}
+                    </button>
+                    <span className={labelClasses}>{item.label}</span>
+                  </div>
+                  {index < stepsConfig.length - 1 && (
+                    <div className="flex-1">
+                      <div
+                        className={`mx-auto mb-8 h-[2px] w-full rounded-full transition-all duration-500 ${
+                          step > item.id
+                            ? "bg-gradient-to-r from-primary via-primary/70 to-primary/40"
+                            : "bg-base-300/60"
+                        }`}
+                      />
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="space-y-6">
           {step === 1 && (
@@ -184,7 +244,7 @@ const BookingPage: React.FC = () => {
                 onServiceChange={handleServiceChange}
                 title="Välj din behandling"
               />
-              <div className="flex justify-end mt-4">
+              <div className="mt-4 flex justify-end">
                 <button
                   className="btn btn-primary"
                   onClick={() => setStep(2)}
@@ -205,7 +265,7 @@ const BookingPage: React.FC = () => {
                 title="Välj datum"
                 selectedService={selectedService}
               />
-              <div className="flex justify-between mt-4">
+              <div className="mt-4 flex justify-between">
                 <button className="btn btn-ghost" onClick={() => setStep(1)}>
                   Tillbaka
                 </button>
@@ -236,9 +296,7 @@ const BookingPage: React.FC = () => {
                     ? `Lediga tider för ${format(
                         selectedDate,
                         "EEEE d MMMM yyyy",
-                        {
-                          locale: sv,
-                        }
+                        { locale: sv }
                       )}`
                     : ""
                 }
@@ -250,18 +308,18 @@ const BookingPage: React.FC = () => {
                 selectedSlot={selectedSlot}
                 formatTimeSlot={formatTimeSlot}
               />
-              <div className="flex justify-between mt-4">
+              <div className="mt-4 flex justify-between">
                 <button className="btn btn-ghost" onClick={() => setStep(2)}>
                   Tillbaka
                 </button>
                 <button
                   className="btn btn-primary"
-                  onClick={handleOpenModal} // Öppna modalen istället för att skicka direkt
+                  onClick={handleOpenModal}
                   disabled={!selectedSlot || bookingLoading}
                 >
                   {bookingLoading ? (
                     <>
-                      <span className="loading loading-spinner mr-2"></span>
+                      <span className="loading loading-spinner mr-2" />
                       Bekräftar...
                     </>
                   ) : (
@@ -272,7 +330,6 @@ const BookingPage: React.FC = () => {
             </>
           )}
         </div>
-
         {(servicesError || timeSlotsError || bookingError) && (
           <div role="alert" className="alert alert-error mt-6">
             <h3 className="font-bold">Fel</h3>
