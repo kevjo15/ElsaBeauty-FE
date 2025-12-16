@@ -20,6 +20,8 @@ import BookingConfirmationPage from "@/pages/BookingConfirmationPage";
 import ServicesPage from "@/pages/ServicesPage";
 import ServiceDetailsPage from "@/pages/ServiceDetailsPage";
 import BookingsHistoryPage from "@/pages/BookingsHistoryPage";
+import EmployeeDashboard from "@/pages/EmployeeDashboard";
+import AdminDashboard from "@/pages/AdminDashboard";
 
 function App() {
   return (
@@ -82,6 +84,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <BookingsHistoryPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/employee"
+              element={
+                <ProtectedRoute>
+                  <EmployeeDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminDashboard />
                 </ProtectedRoute>
               }
             />

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
+import { jwtDecode } from "jwt-decode";
 import {
   loginUser,
   logoutUser,
@@ -54,8 +55,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Funktion som anropar "me"-endpointen för att hämta aktuell användardata
   const fetchUser = async () => {
     try {
+      const accessToken = getCookie("accessToken");
+
+      // Decode role from token as fallback if ME omits it
+      let decodedRole: string | undefined;
+      if (accessToken) {
+        try {
+          const decoded = jwtDecode<JwtPayload & Record<string, unknown>>(accessToken);
+          decodedRole =
+            (decoded?.role as string | undefined) ||
+            (decoded?.Role as string | undefined) ||
+            (decoded?.["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] as string | undefined);
+        } catch (err) {
+          console.warn("Could not decode access token", err);
+        }
+      }
+
       const response = await axios.get(ME_URL, {
         withCredentials: true,
+        headers: accessToken
+          ? { Authorization: `Bearer ${accessToken}` }
+          : undefined,
       });
       const { userId, email, role } = response.data;
 
@@ -69,10 +89,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         const nameResponse = await axios.get(USER_NAME_URL, {
           withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${getCookie("accessToken")}`,
-            "Content-Type": "application/json",
-          },
+          headers: accessToken
+            ? {
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
+              }
+            : { "Content-Type": "application/json" },
         });
 
         console.log("Name response data:", nameResponse.data);
@@ -92,7 +114,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         user: {
           id: userId,
           email,
-          role,
+          role: role ?? decodedRole,
           firstName,
           lastName,
         },

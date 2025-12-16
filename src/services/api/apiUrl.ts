@@ -23,3 +23,19 @@ export const CREATE_BOOKING_URL = `${API_BASE_URL}/Booking/CreateBooking`;
 export const GET_AVAILABLE_SLOTS_URL = `${API_BASE_URL}/Booking/available-time-slots`;
 export const GET_MY_BOOKINGS_URL = `${API_BASE_URL}/Booking/GetBookingsByUserId/MyBookings`;
 export const CANCEL_BOOKING_URL = `${API_BASE_URL}/Booking/CancelBooking`;
+export const GET_MY_ASSIGNED_BOOKINGS_URL = `${API_BASE_URL}/Booking/MyAssigned`;
+export const ASSIGN_EMPLOYEE_URL = `${API_BASE_URL}/Booking/AssignEmployee`;
+
+/* Chat endpoints */
+export const SIGNALR_BASE_URL =
+  import.meta.env.VITE_SIGNALR_BASE_URL ||
+  (typeof window !== "undefined" ? window.location.origin : "");
+export const CHAT_HUB_URL = `${SIGNALR_BASE_URL}/chatHub`;
+export const NOTIFICATION_HUB_URL = `${SIGNALR_BASE_URL}/notificationHub`;
+export const getConversationMessagesUrl = (conversationId: string) =>
+  `${API_BASE_URL}/conversations/${conversationId}/GetMessagesForConversation`;
+export const sendConversationMessageUrl = (conversationId: string) =>
+  `${API_BASE_URL}/conversations/${conversationId}/SendMessage`;
+
+/* Employee endpoints */
+export const GET_EMPLOYEES_URL = `${API_BASE_URL}/User/employees`;

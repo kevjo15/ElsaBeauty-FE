@@ -4,6 +4,9 @@ import {
   GET_MY_BOOKINGS_URL,
   CANCEL_BOOKING_URL,
   REFRESH_TOKEN_URL,
+  GET_MY_ASSIGNED_BOOKINGS_URL,
+  ASSIGN_EMPLOYEE_URL,
+  API_BASE_URL,
 } from "./apiUrl";
 import { api, setCookie } from "./apiService";
 import {
@@ -177,5 +180,78 @@ export const cancelBooking = async (bookingId: string): Promise<boolean> => {
   } catch (error) {
     console.error("Failed to cancel booking:", error);
     return false;
+  }
+};
+
+export const getMyAssignedBookings = async (
+  from?: Date,
+  to?: Date
+): Promise<BookingResponse[]> => {
+  try {
+    const getAccessToken = () =>
+      document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("accessToken="))
+        ?.split("=")[1];
+    const token = getAccessToken();
+    const params: Record<string, string> = {};
+    if (from) params.from = from.toISOString();
+    if (to) params.to = to.toISOString();
+    const res = await api.get<BookingResponse[]>(GET_MY_ASSIGNED_BOOKINGS_URL, {
+      params,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    return res.data ?? [];
+  } catch (error) {
+    console.error("Failed to fetch assigned bookings:", error);
+    return [];
+  }
+};
+
+export const assignEmployee = async (
+  bookingId: string,
+  employeeId: string
+): Promise<BookingResponse | null> => {
+  try {
+    const getAccessToken = () =>
+      document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("accessToken="))
+        ?.split("=")[1];
+    const token = getAccessToken();
+
+    const res = await api.put<BookingResponse>(
+      `${ASSIGN_EMPLOYEE_URL}/${bookingId}`,
+      { employeeId },
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      }
+    );
+    return res.data;
+  } catch (error) {
+    console.error("Failed to assign employee:", error);
+    return null;
+  }
+};
+
+export const getAllBookings = async (): Promise<BookingResponse[]> => {
+  try {
+    const getAccessToken = () =>
+      document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("accessToken="))
+        ?.split("=")[1];
+    const token = getAccessToken();
+
+    const res = await api.get<BookingResponse[]>(
+      `${API_BASE_URL}/Booking/GetAllBookings`,
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      }
+    );
+    return res.data ?? [];
+  } catch (error) {
+    console.error("Failed to fetch all bookings:", error);
+    return [];
   }
 };
