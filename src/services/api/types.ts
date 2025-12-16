@@ -41,10 +41,35 @@ export interface BookingResponse {
   serviceId: string;
   startTime: string;
   endTime: string;
+  employeeId?: string;
+  conversationId?: string;
+  isChatOpen?: boolean;
   status?: string;
 }
 
 export interface UserNameDTO {
   firstName: string;
   lastName: string;
+}
+
+export interface ChatMessage {
+  id?: string;
+  conversationId: string;
+  senderId: string;
+  content: string;
+  sentAt: string;
+}
+
+export interface BookingChatMeta {
+  startTime: string;
+  endTime: string;
+  status?: string;
+  isChatOpen?: boolean;
+}
+
+export interface Employee {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
 }

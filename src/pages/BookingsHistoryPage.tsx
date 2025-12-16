@@ -7,12 +7,14 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  MessageCircle,
 } from "lucide-react";
 import {
   cancelBooking,
   getMyBookings,
   type BookingResponse,
 } from "@/services/api";
+import BookingChat from "@/components/BookingChat";
 import { useServicesWithImages } from "@/hooks/useServicesWithImages";
 import {
   differenceInDays,
@@ -62,6 +64,7 @@ const BookingsHistoryPage: React.FC = () => {
   const [err, setErr] = useState<string | null>(null);
   const [active, setActive] = useState<Tab>("upcoming");
   const [canceling, setCanceling] = useState<string | null>(null);
+  const [chatBooking, setChatBooking] = useState<BookingResponse | null>(null);
 
   const { services } = useServicesWithImages();
 
@@ -227,6 +230,23 @@ const BookingsHistoryPage: React.FC = () => {
                         )}
                       </button>
                     )}
+                    {b.conversationId ? (
+                      <button
+                        className="btn btn-primary btn-sm w-full md:btn-md md:w-auto"
+                        onClick={() => setChatBooking(b)}
+                        title="Öppna chat"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        Chat
+                      </button>
+                    ) : (
+                      <div className="tooltip tooltip-left" data-tip="Chat aktiveras när en medarbetare har tilldelats bokningen">
+                        <button className="btn btn-disabled btn-sm w-full md:btn-md md:w-auto">
+                          <MessageCircle className="h-4 w-4" />
+                          Chat ej tillgänglig
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </article>
@@ -340,6 +360,38 @@ const BookingsHistoryPage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {chatBooking && (
+        <section className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="bg-base-100 border border-base-300 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Chat för bokning</h2>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setChatBooking(null)}
+              >
+                Stäng
+              </button>
+            </div>
+            <p className="text-sm text-base-content/60">
+              {serviceName(chatBooking.serviceId)} ·{" "}
+              {format(new Date(chatBooking.startTime), "d MMM yyyy HH:mm", {
+                locale: sv,
+              })}
+            </p>
+          </div>
+          {chatBooking.conversationId ? (
+            <BookingChat booking={chatBooking as BookingResponse & { conversationId: string }} />
+          ) : (
+            <div className="bg-base-100 border border-dashed border-base-300 rounded-2xl p-6 flex flex-col gap-2 justify-center">
+              <p className="font-semibold">Chat aktiveras snart</p>
+              <p className="text-sm text-base-content/70">
+                När en medarbetare har tilldelats din bokning aktiveras chatten. Du kan då läsa och skriva meddelanden här.
+              </p>
+            </div>
+          )}
+        </section>
+      )}
     </MainLayout>
   );
 };
