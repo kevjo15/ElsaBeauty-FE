@@ -1,16 +1,11 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   HubConnection,
   HubConnectionBuilder,
   HubConnectionState,
   LogLevel,
 } from "@microsoft/signalr";
+import { toast } from "sonner";
 import { CHAT_HUB_URL } from "@/services/api/apiUrl";
 import {
   fetchConversationMessages,
@@ -19,8 +14,17 @@ import {
 } from "@/services/api/chatAPI";
 import type { BookingChatMeta, ChatMessage } from "@/services/api/types";
 import { getCookie } from "@/services/api/authService";
+import {
+  requestNotificationPermission,
+  showNotification,
+  playNotificationSound,
+} from "@/utils/notifications";
 
-type ConnectionStatus = "disconnected" | "connecting" | "connected" | "reconnecting";
+type ConnectionStatus =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "reconnecting";
 
 interface UseSignalRChatOptions {
   conversationId?: string;
@@ -51,6 +55,11 @@ export function useSignalRChat({
   const [error, setError] = useState<string>();
   const connectionRef = useRef<HubConnection | null>(null);
 
+  // Request notification permission when hook mounts
+  useEffect(() => {
+    void requestNotificationPermission();
+  }, []);
+
   const isChatOpen = useMemo(() => {
     // Prefer explicit flag from backend if provided
     if (typeof bookingMeta?.isChatOpen === "boolean") {
@@ -66,17 +75,54 @@ export function useSignalRChat({
     const now = new Date();
     const end = new Date(bookingMeta.endTime);
     const graceMs = graceHours * 60 * 60 * 1000;
-    return now <= end.getTime() + graceMs;
+    return now.getTime() <= end.getTime() + graceMs;
   }, [bookingMeta?.endTime, bookingMeta?.isChatOpen, bookingMeta?.status]);
 
-  // Helper: ensure messages stay sorted and de-duplicated on id+timestamp+content
+  // Helper: ensure messages stay sorted and de-duplicated
   const upsertMessage = useCallback((incoming: ChatMessage) => {
     setMessages((prev) => {
-      const key = (m: ChatMessage) =>
-        `${m.id ?? ""}-${m.sentAt}-${m.senderId}-${m.content}`;
-      const map = new Map<string, ChatMessage>();
-      [...prev, incoming].forEach((m) => map.set(key(m), m));
-      return [...map.values()].sort(
+      const merged = [...prev];
+      let found = false;
+
+      // Strategy 1: Match by ID
+      if (incoming.id) {
+        const idx = merged.findIndex((m) => m.id === incoming.id);
+        if (idx !== -1) {
+          merged[idx] = incoming;
+          found = true;
+        }
+      }
+
+      // Strategy 2: Match by content + sender + approx time if ID missing
+      if (!found) {
+        const idx = merged.findIndex(
+          (m) =>
+            (!m.id || !incoming.id) && // Only if one is missing ID
+            m.senderId === incoming.senderId &&
+            m.content === incoming.content &&
+            Math.abs(
+              new Date(m.sentAt).getTime() - new Date(incoming.sentAt).getTime()
+            ) < 10000 // 10s window
+        );
+
+        if (idx !== -1) {
+          // If incoming has ID (and match didn't), replace it
+          if (incoming.id) {
+            merged[idx] = incoming;
+          }
+          // If neither has ID or both (unlikely given Strategy 1), just update
+          else {
+            merged[idx] = incoming;
+          }
+          found = true;
+        }
+      }
+
+      if (!found) {
+        merged.push(incoming);
+      }
+
+      return merged.sort(
         (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()
       );
     });
@@ -93,7 +139,8 @@ export function useSignalRChat({
         if (!cancelled) {
           setMessages(
             (history ?? []).sort(
-              (a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()
+              (a, b) =>
+                new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()
             )
           );
         }
@@ -142,7 +189,35 @@ export function useSignalRChat({
       connectionRef.current = connection;
 
       connection.on("ReceiveMessage", (message: ChatMessage) => {
-        upsertMessage(toChatMessage(message));
+        const incoming = toChatMessage(message);
+        // Om avsändare saknas (backend skickar ej), låt den vara tom så den inte misstas som min
+        upsertMessage(incoming);
+
+        // Visa notifikation om meddelandet inte är från mig själv
+        const isMyMessage = currentUserId && incoming.senderId === currentUserId;
+        if (!isMyMessage && incoming.content) {
+          const preview = incoming.content.length > 50
+            ? `${incoming.content.substring(0, 50)}...`
+            : incoming.content;
+
+          // Toast notification (always shows)
+          toast.info("Nytt meddelande", {
+            description: preview,
+            duration: 4000,
+          });
+
+          // Desktop notification (only if tab is not focused)
+          if (document.hidden) {
+            showNotification("Nytt meddelande", {
+              body: preview,
+              tag: `chat-${conversationId}`,
+              requireInteraction: false,
+            });
+          }
+
+          // Play notification sound
+          playNotificationSound();
+        }
       });
       // Avoid console warnings for hub callbacks we don't actively use
       connection.on("JoinedConversation", () => {});
@@ -156,9 +231,11 @@ export function useSignalRChat({
         if (isMounted) setStatus("connected");
         // Re-join conversation after reconnection
         if (connection.state === HubConnectionState.Connected) {
-          connection.invoke("JoinConversation", conversationId).catch((err) =>
-            console.error("Failed to rejoin conversation", err)
-          );
+          connection
+            .invoke("JoinConversation", conversationId)
+            .catch((err) =>
+              console.error("Failed to rejoin conversation", err)
+            );
         }
       });
 
@@ -174,7 +251,9 @@ export function useSignalRChat({
       } catch (err) {
         const message = (err as Error)?.message ?? "";
         // In React StrictMode the first render's effect is cleaned up immediately, causing AbortError.
-        const isAbort = message.includes("stopped during negotiation") || (err as Error).name === "AbortError";
+        const isAbort =
+          message.includes("stopped during negotiation") ||
+          (err as Error).name === "AbortError";
         if (!isAbort) {
           console.error("Failed to start SignalR connection", err);
         }
@@ -232,12 +311,11 @@ export function useSignalRChat({
             conversationId
           );
         } else {
-          // Fallback to HTTP if connection is not ready
+          // Fallback to HTTP if connection is not ready; UI will update when server echoes back
           await sendMessageHttp(conversationId, {
             senderId: currentUserId,
             content: payload.content,
           });
-          upsertMessage(payload);
         }
       } catch (err) {
         console.error("Send message failed", err);

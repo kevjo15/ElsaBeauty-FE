@@ -24,6 +24,7 @@ export const GET_AVAILABLE_SLOTS_URL = `${API_BASE_URL}/Booking/available-time-s
 export const GET_MY_BOOKINGS_URL = `${API_BASE_URL}/Booking/GetBookingsByUserId/MyBookings`;
 export const CANCEL_BOOKING_URL = `${API_BASE_URL}/Booking/CancelBooking`;
 export const GET_MY_ASSIGNED_BOOKINGS_URL = `${API_BASE_URL}/Booking/MyAssigned`;
+export const GET_BOOKING_BY_ID_URL = `${API_BASE_URL}/Booking/GetBookingByBookingId`;
 export const ASSIGN_EMPLOYEE_URL = `${API_BASE_URL}/Booking/AssignEmployee`;
 
 /* Chat endpoints */

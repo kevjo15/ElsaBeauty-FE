@@ -2,9 +2,16 @@ import React, { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/components/layout/main-layout";
 import { useAuth } from "@/services/api/authContext";
 import { MessageCircle } from "lucide-react";
-import { addDays, endOfWeek, format, startOfWeek } from "date-fns";
+import {
+  addDays,
+  endOfDay,
+  endOfWeek,
+  format,
+  isSameDay,
+  startOfDay,
+  startOfWeek,
+} from "date-fns";
 import { sv } from "date-fns/locale";
-import BookingChat from "@/components/BookingChat";
 import {
   assignEmployee,
   getAllBookings,
@@ -13,6 +20,7 @@ import {
 import { getEmployees } from "@/services/api/userAPI";
 import { getAllServices } from "@/services/api/serviceAPI";
 import type { BookingResponse, Employee, Service } from "@/services/api/types";
+import { useNavigate } from "react-router-dom";
 
 const EmployeeDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -24,20 +32,26 @@ const EmployeeDashboard: React.FC = () => {
   const [bookings, setBookings] = useState<BookingResponse[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [services, setServices] = useState<Service[]>([]);
-  const [selectedBooking, setSelectedBooking] = useState<BookingResponse | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0); // 0 = this week, +/- to navigate
+  const [viewMode, setViewMode] = useState<"today" | "week" | "month">("week");
+  const [detailBooking, setDetailBooking] = useState<BookingResponse | null>(null);
+  const navigate = useNavigate();
 
   const loadData = async () => {
     try {
       setError(null);
       const now = new Date();
-      const start = new Date(now);
-      start.setHours(0, 0, 0, 0);
-      start.setDate(start.getDate() + weekOffset * 7);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 7);
+      let start = startOfDay(now);
+      let end = endOfDay(now);
+
+      if (viewMode === "week") {
+        start = startOfWeek(addDays(now, weekOffset * 7), { weekStartsOn: 1 });
+        end = endOfWeek(start, { weekStartsOn: 1 });
+      } else if (viewMode === "month") {
+        end = addDays(start, 30);
+      }
 
       const promises: Promise<unknown>[] = [];
       promises.push(
@@ -60,7 +74,7 @@ const EmployeeDashboard: React.FC = () => {
     if (isEmployee) {
       void loadData();
     }
-  }, [isEmployee, weekOffset]);
+  }, [isEmployee, weekOffset, viewMode]);
 
   const handleAssign = async (bookingId: string, employeeId: string) => {
     if (!employeeId) return;
@@ -108,6 +122,44 @@ const EmployeeDashboard: React.FC = () => {
     );
   }, [bookings]);
 
+  const stats = useMemo(() => {
+    const now = new Date();
+    const endNext7 = addDays(now, 7);
+    const todayCount = assigned.filter((b) =>
+      isSameDay(new Date(b.startTime), now)
+    ).length;
+    const upcomingWeek = assigned.filter((b) => {
+      const s = new Date(b.startTime);
+      return s >= now && s <= endNext7;
+    }).length;
+    const completed = assigned.filter(
+      (b) => new Date(b.endTime) < now
+    ).length;
+    return { todayCount, upcomingWeek, completed };
+  }, [assigned]);
+
+  const derivedStatus = (b: BookingResponse) => {
+    if (b.status) return b.status;
+    const now = new Date();
+    const start = new Date(b.startTime);
+    const end = new Date(b.endTime);
+    if (end < now) return "Avslutad";
+    if (start <= now && end >= now) return "Pågående";
+    return "Kommande";
+  };
+
+  const filteredBookings = useMemo(() => bookingsForWeek, [bookingsForWeek]);
+
+  const todayBookings = useMemo(
+    () => filteredBookings.filter((b) => isSameDay(new Date(b.startTime), new Date())),
+    [filteredBookings]
+  );
+
+  const upcomingBookings = useMemo(
+    () => filteredBookings.filter((b) => !isSameDay(new Date(b.startTime), new Date())),
+    [filteredBookings]
+  );
+
   if (!isEmployee) {
     return (
       <MainLayout>
@@ -124,24 +176,83 @@ const EmployeeDashboard: React.FC = () => {
         <header className="space-y-2">
           <h1 className="text-3xl font-bold">Medarbetaröversikt</h1>
           <p className="text-base-content/70">Se dina bokningar och tilldela medarbetare.</p>
-          <div className="flex flex-wrap gap-2 items-center text-sm">
-            <span>Vecka</span>
+          <div className="flex flex-wrap gap-3 items-center text-sm">
             <div className="join">
-              <button className="btn btn-sm join-item" onClick={() => setWeekOffset((w) => w - 1)}>
-                Föregående
+              <button
+                className={`btn btn-sm join-item ${viewMode === "today" ? "btn-primary" : ""}`}
+                onClick={() => {
+                  setViewMode("today");
+                  setWeekOffset(0);
+                }}
+              >
+                Idag
               </button>
-              <button className="btn btn-sm join-item" onClick={() => setWeekOffset(0)}>
-                Nuvarande
+              <button
+                className={`btn btn-sm join-item ${viewMode === "week" ? "btn-primary" : ""}`}
+                onClick={() => setViewMode("week")}
+              >
+                Vecka
               </button>
-              <button className="btn btn-sm join-item" onClick={() => setWeekOffset((w) => w + 1)}>
-                Nästa
+              <button
+                className={`btn btn-sm join-item ${viewMode === "month" ? "btn-primary" : ""}`}
+                onClick={() => {
+                  setViewMode("month");
+                  setWeekOffset(0);
+                }}
+              >
+                30 dagar
               </button>
             </div>
-            <span className="text-base-content/70">
-              {weekInfo.weekText} ({weekInfo.rangeText})
-            </span>
+
+            {viewMode === "week" && (
+              <>
+                <div className="join">
+                  <button className="btn btn-sm join-item" onClick={() => setWeekOffset((w) => w - 1)}>
+                    Föregående
+                  </button>
+                  <button className="btn btn-sm join-item" onClick={() => setWeekOffset(0)}>
+                    Nuvarande
+                  </button>
+                  <button className="btn btn-sm join-item" onClick={() => setWeekOffset((w) => w + 1)}>
+                    Nästa
+                  </button>
+                </div>
+                <span className="text-base-content/70">
+                  {weekInfo.weekText} ({weekInfo.rangeText})
+                </span>
+              </>
+            )}
+
+            {viewMode === "today" && (
+              <span className="text-base-content/70">Idag ({format(new Date(), "d MMM", { locale: sv })})</span>
+            )}
+
+            {viewMode === "month" && (
+              <span className="text-base-content/70">Kommande 30 dagar</span>
+            )}
           </div>
         </header>
+
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="card bg-base-100 shadow-sm border border-base-300">
+            <div className="card-body py-4">
+              <p className="text-sm text-base-content/60">Idag</p>
+              <p className="text-2xl font-semibold">{stats.todayCount}</p>
+            </div>
+          </div>
+          <div className="card bg-base-100 shadow-sm border border-base-300">
+            <div className="card-body py-4">
+              <p className="text-sm text-base-content/60">Kommande 7 dagar</p>
+              <p className="text-2xl font-semibold">{stats.upcomingWeek}</p>
+            </div>
+          </div>
+          <div className="card bg-base-100 shadow-sm border border-base-300">
+            <div className="card-body py-4">
+              <p className="text-sm text-base-content/60">Avslutade</p>
+              <p className="text-2xl font-semibold">{stats.completed}</p>
+            </div>
+          </div>
+        </section>
 
         {error && (
           <div className="alert alert-error">
@@ -153,17 +264,53 @@ const EmployeeDashboard: React.FC = () => {
           <div className="card bg-base-100 shadow-sm border border-base-300 w-full">
             <div className="card-body">
               <div className="flex items-center justify-between">
-                <h2 className="card-title">Mina tilldelade bokningar (nästa 7 dagar)</h2>
+                <h2 className="card-title">Mina tilldelade bokningar</h2>
                 <button className="btn btn-ghost btn-sm" onClick={loadData}>
                   Uppdatera
                 </button>
               </div>
-              {!bookingsForWeek.length ? (
-                <p className="text-sm text-base-content/60">Inga kommande bokningar.</p>
+              {!filteredBookings.length ? (
+                <p className="text-sm text-base-content/60">Inga bokningar matchar filtret.</p>
               ) : (
                 <ul className="divide-y divide-base-300">
-                  {bookingsForWeek.map((b) => (
-                    <li key={b.id} className="py-3 flex items-center justify-between">
+                  {todayBookings.map((b) => (
+                    <li
+                      key={b.id}
+                      className="py-3 flex items-center justify-between cursor-pointer hover:bg-base-200/40 rounded"
+                      onClick={() => setDetailBooking(b)}
+                    >
+                      <div>
+                        <p className="font-medium">{formatTime(b.startTime)}</p>
+                        <p className="text-sm text-base-content/60">
+                          {serviceName(b.serviceId)}
+                        </p>
+                        <span className="badge badge-primary badge-outline mt-1">Idag</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="badge badge-outline">
+                          {b.conversationId ? "Chat aktiv" : "Ingen chat"}
+                        </span>
+                        <span className="badge badge-ghost">{derivedStatus(b)}</span>
+                        {b.conversationId && (
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/chat/${b.id}`, { state: { booking: b } });
+                            }}
+                          >
+                            <MessageCircle className="h-4 w-4" /> Chat
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                  {upcomingBookings.map((b) => (
+                    <li
+                      key={b.id}
+                      className="py-3 flex items-center justify-between cursor-pointer hover:bg-base-200/40 rounded"
+                      onClick={() => setDetailBooking(b)}
+                    >
                       <div>
                         <p className="font-medium">{formatTime(b.startTime)}</p>
                         <p className="text-sm text-base-content/60">
@@ -174,10 +321,14 @@ const EmployeeDashboard: React.FC = () => {
                         <span className="badge badge-outline">
                           {b.conversationId ? "Chat aktiv" : "Ingen chat"}
                         </span>
+                        <span className="badge badge-ghost">{derivedStatus(b)}</span>
                         {b.conversationId && (
                           <button
                             className="btn btn-primary btn-sm"
-                            onClick={() => setSelectedBooking(b)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/chat/${b.id}`, { state: { booking: b } });
+                            }}
                           >
                             <MessageCircle className="h-4 w-4" /> Chat
                           </button>
@@ -242,18 +393,49 @@ const EmployeeDashboard: React.FC = () => {
           )}
         </section>
 
-        {selectedBooking && selectedBooking.conversationId && (
+        {detailBooking && (
           <section className="card bg-base-100 shadow-sm border border-base-300 w-full">
             <div className="card-body">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="card-title">Chat</h2>
-                <button className="btn btn-ghost btn-sm" onClick={() => setSelectedBooking(null)}>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="card-title">Detaljer</h2>
+                <button className="btn btn-ghost btn-sm" onClick={() => setDetailBooking(null)}>
                   Stäng
                 </button>
               </div>
-              <BookingChat
-                booking={selectedBooking as BookingResponse & { conversationId: string }}
-              />
+              <div className="space-y-2 text-sm">
+                <div className="flex gap-2">
+                  <span className="font-medium">Service:</span>
+                  <span>{serviceName(detailBooking.serviceId)}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="font-medium">Tid:</span>
+                  <span>
+                    {formatTime(detailBooking.startTime)} - {format(new Date(detailBooking.endTime), "HH:mm", { locale: sv })}
+                  </span>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <span className="font-medium">Status:</span>
+                  <span className="badge badge-ghost">{derivedStatus(detailBooking)}</span>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <span className="font-medium">Chat:</span>
+                  <span className="badge badge-outline">
+                    {detailBooking.conversationId ? "Chat aktiv" : "Ingen chat"}
+                  </span>
+                </div>
+              </div>
+              {detailBooking.conversationId && (
+                <div className="mt-4">
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() =>
+                      navigate(`/chat/${detailBooking.id}`, { state: { booking: detailBooking } })
+                    }
+                  >
+                    <MessageCircle className="h-4 w-4" /> Öppna chat
+                  </button>
+                </div>
+              )}
             </div>
           </section>
         )}

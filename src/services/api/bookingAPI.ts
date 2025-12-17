@@ -6,6 +6,7 @@ import {
   REFRESH_TOKEN_URL,
   GET_MY_ASSIGNED_BOOKINGS_URL,
   ASSIGN_EMPLOYEE_URL,
+  GET_BOOKING_BY_ID_URL,
   API_BASE_URL,
 } from "./apiUrl";
 import { api, setCookie } from "./apiService";
@@ -253,5 +254,29 @@ export const getAllBookings = async (): Promise<BookingResponse[]> => {
   } catch (error) {
     console.error("Failed to fetch all bookings:", error);
     return [];
+  }
+};
+
+export const getBookingById = async (
+  bookingId: string
+): Promise<BookingResponse | null> => {
+  try {
+    const getAccessToken = () =>
+      document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("accessToken="))
+        ?.split("=")[1];
+    const token = getAccessToken();
+
+    const res = await api.get<BookingResponse>(
+      `${GET_BOOKING_BY_ID_URL}/${bookingId}`,
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      }
+    );
+    return res.data ?? null;
+  } catch (error) {
+    console.error("Failed to fetch booking by id:", error);
+    return null;
   }
 };

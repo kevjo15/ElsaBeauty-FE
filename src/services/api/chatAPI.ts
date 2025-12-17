@@ -13,6 +13,8 @@ type RawChatMessage = Partial<{
   ConversationId: string;
   senderId: string;
   SenderId: string;
+  userId: string;
+  UserId: string;
   content: string;
   Content: string;
   sentAt: string;
@@ -21,10 +23,16 @@ type RawChatMessage = Partial<{
 
 const toChatMessage = (raw: RawChatMessage | unknown): ChatMessage => {
   const r = (typeof raw === "object" && raw !== null ? raw : {}) as RawChatMessage;
+  const sender =
+    r.senderId ??
+    r.SenderId ??
+    r.userId ??
+    r.UserId ??
+    "";
   return {
     id: r.id ?? r.Id,
     conversationId: r.conversationId ?? r.ConversationId ?? "",
-    senderId: r.senderId ?? r.SenderId ?? "",
+    senderId: sender,
     content: r.content ?? r.Content ?? "",
     sentAt: r.sentAt ?? r.SentAt ?? new Date().toISOString(),
   };
