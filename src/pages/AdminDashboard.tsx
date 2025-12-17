@@ -10,7 +10,7 @@ import {
 import { getEmployees } from "@/services/api/userAPI";
 import { getAllServices } from "@/services/api/serviceAPI";
 import type { BookingResponse, Employee, Service } from "@/services/api/types";
-import { format } from "date-fns";
+import { addDays, format, startOfDay } from "date-fns";
 import { sv } from "date-fns/locale";
 import { MessageCircle } from "lucide-react";
 
@@ -25,8 +25,11 @@ const AdminDashboard: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<BookingResponse | null>(null);
+  const [detailBooking, setDetailBooking] = useState<BookingResponse | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "unassigned" | "chat">("all");
+  const [sortSoonest, setSortSoonest] = useState<boolean>(true);
 
   const loadData = async () => {
     try {
@@ -78,14 +81,22 @@ const AdminDashboard: React.FC = () => {
   const serviceName = (id: string) =>
     services.find((s) => s.id === id)?.name || "Okänd tjänst";
 
-  const sortedBookings = useMemo(
-    () =>
-      [...bookings].sort(
-        (a, b) =>
-          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-      ),
-    [bookings]
-  );
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((b) => {
+      if (filter === "unassigned") return !b.employeeId;
+      if (filter === "chat") return Boolean(b.conversationId);
+      return true;
+    });
+  }, [bookings, filter]);
+
+  const sortedBookings = useMemo(() => {
+    const sorted = [...filteredBookings].sort((a, b) => {
+      const diff =
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+      return sortSoonest ? diff : -diff;
+    });
+    return sorted;
+  }, [filteredBookings, sortSoonest]);
 
   const sortedAssigned = useMemo(
     () =>
@@ -95,6 +106,39 @@ const AdminDashboard: React.FC = () => {
       ),
     [assigned]
   );
+
+  const stats = useMemo(() => {
+    const total = bookings.length;
+    const assignedCount = bookings.filter((b) => b.employeeId).length;
+    const unassigned = total - assignedCount;
+    return { total, assignedCount, unassigned };
+  }, [bookings]);
+
+  const miniChart = useMemo(() => {
+    const today = startOfDay(new Date());
+    const days: { label: string; value: number }[] = [];
+    for (let i = 6; i >= 0; i -= 1) {
+      const day = addDays(today, -i);
+      const dayStr = day.toISOString().slice(0, 10);
+      const count = bookings.filter((b) => b.startTime.slice(0, 10) === dayStr).length;
+      days.push({ label: format(day, "EEE", { locale: sv }), value: count });
+    }
+    const max = Math.max(...days.map((d) => d.value), 1);
+    return { days, max };
+  }, [bookings]);
+
+  const upcomingChart = useMemo(() => {
+    const today = startOfDay(new Date());
+    const days: { label: string; value: number }[] = [];
+    for (let i = 0; i < 7; i += 1) {
+      const day = addDays(today, i);
+      const dayStr = day.toISOString().slice(0, 10);
+      const count = bookings.filter((b) => b.startTime.slice(0, 10) === dayStr).length;
+      days.push({ label: format(day, "EEE", { locale: sv }), value: count });
+    }
+    const max = Math.max(...days.map((d) => d.value), 1);
+    return { days, max };
+  }, [bookings]);
 
   if (!isAdmin) {
     return (
@@ -108,16 +152,92 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="max-w-6xl xl:max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-        <header className="space-y-1">
+      <div className="max-w-7xl xl:max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-12 space-y-10">
+        <header className="space-y-2">
           <h1 className="text-3xl font-bold">Adminpanel</h1>
-          <p className="text-base-content/70">
+          <p className="text-base-content/70 text-sm md:text-base">
             Tilldela medarbetare, följ status och öppna chattar.
           </p>
-          <button className="btn btn-ghost btn-sm" onClick={loadData}>
-            Uppdatera
-          </button>
+          <div className="flex gap-2">
+            <button className="btn btn-ghost btn-sm" onClick={loadData}>
+              Uppdatera
+            </button>
+          </div>
         </header>
+
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="card bg-base-100 border border-base-300 shadow-sm rounded-xl">
+            <div className="card-body py-5">
+              <p className="text-sm text-base-content/70">Alla bokningar</p>
+              <p className="text-2xl font-semibold leading-tight">{stats.total}</p>
+            </div>
+          </div>
+          <div className="card bg-base-100 border border-base-300 shadow-sm rounded-xl">
+            <div className="card-body py-5">
+              <p className="text-sm text-base-content/70">Tilldelade</p>
+              <p className="text-2xl font-semibold leading-tight">{stats.assignedCount}</p>
+            </div>
+          </div>
+          <div className="card bg-base-100 border border-base-300 shadow-sm rounded-xl">
+            <div className="card-body py-5">
+              <p className="text-sm text-base-content/70">Ej tilldelade</p>
+              <p className="text-2xl font-semibold leading-tight">{stats.unassigned}</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="card bg-base-100 border border-base-300 shadow-sm rounded-xl">
+          <div className="card-body">
+            <div className="flex items-center justify-between">
+              <h2 className="card-title">Bokningar (7 dagar bakåt & framåt)</h2>
+              <span className="text-xs text-base-content/60">Snabb överblick</span>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4 mt-2">
+              <div>
+                <p className="text-sm text-base-content/70 mb-1">Senaste 7 dagar</p>
+                <div className="flex items-end gap-3">
+                  {miniChart.days.map((d) => (
+                    <div key={d.label} className="flex flex-col items-center gap-1 flex-1 min-w-[28px]">
+                      <div
+                        className="w-full rounded bg-primary/30"
+                        style={{
+                          height: `${(d.value / miniChart.max) * 80 + 6}px`,
+                          minHeight: 6,
+                        }}
+                        title={`${d.value} bokningar`}
+                      >
+                        <div className="w-full h-full bg-primary rounded" style={{ opacity: 0.8 }} />
+                      </div>
+                      <span className="text-[11px] text-base-content/70 uppercase">{d.label}</span>
+                      <span className="text-xs font-semibold">{d.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-sm text-base-content/70 mb-1">Kommande 7 dagar</p>
+                <div className="flex items-end gap-3">
+                  {upcomingChart.days.map((d) => (
+                    <div key={d.label} className="flex flex-col items-center gap-1 flex-1 min-w-[28px]">
+                      <div
+                        className="w-full rounded bg-primary/30"
+                        style={{
+                          height: `${(d.value / upcomingChart.max) * 80 + 6}px`,
+                          minHeight: 6,
+                        }}
+                        title={`${d.value} bokningar`}
+                      >
+                        <div className="w-full h-full bg-primary rounded" style={{ opacity: 0.8 }} />
+                      </div>
+                      <span className="text-[11px] text-base-content/70 uppercase">{d.label}</span>
+                      <span className="text-xs font-semibold">{d.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {error && (
           <div className="alert alert-error">
@@ -125,8 +245,42 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        <section>
-          <div className="card bg-base-100 shadow-sm border border-base-300 w-full">
+        <section className="space-y-4">
+          <div className="flex flex-wrap gap-3 items-center justify-between">
+            <div className="join">
+              <button
+                className={`btn btn-sm join-item ${filter === "all" ? "btn-primary" : ""}`}
+                onClick={() => setFilter("all")}
+              >
+                Alla
+              </button>
+              <button
+                className={`btn btn-sm join-item ${filter === "unassigned" ? "btn-primary" : ""}`}
+                onClick={() => setFilter("unassigned")}
+              >
+                Ej tilldelade
+              </button>
+              <button
+                className={`btn btn-sm join-item ${filter === "chat" ? "btn-primary" : ""}`}
+                onClick={() => setFilter("chat")}
+              >
+                Med chat
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setSortSoonest((v) => !v)}
+              >
+                Sortera: {sortSoonest ? "Snart start" : "Senaste först"}
+              </button>
+              <button className="btn btn-outline btn-sm" onClick={loadData}>
+                Uppdatera
+              </button>
+            </div>
+          </div>
+
+          <div className="card bg-base-100 shadow-sm border border-base-300 w-full rounded-xl">
             <div className="card-body">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="card-title">Alla bokningar</h2>
@@ -146,7 +300,11 @@ const AdminDashboard: React.FC = () => {
                   </thead>
                   <tbody>
                     {sortedBookings.map((b) => (
-                      <tr key={b.id}>
+                      <tr
+                        key={b.id}
+                        className="cursor-pointer hover:bg-base-200/40"
+                        onClick={() => setDetailBooking(b)}
+                      >
                         <td className="whitespace-nowrap">{formatTime(b.startTime)}</td>
                         <td className="text-xs max-w-[240px] truncate">
                           {serviceName(b.serviceId)}
@@ -155,6 +313,7 @@ const AdminDashboard: React.FC = () => {
                           <select
                             className="select select-bordered select-sm w-full max-w-xs"
                             value={b.employeeId || ""}
+                            onClick={(e) => e.stopPropagation()}
                             onChange={(e) => handleAssign(b.id, e.target.value)}
                           >
                             <option value="">Inte tilldelad</option>
@@ -168,16 +327,21 @@ const AdminDashboard: React.FC = () => {
                         <td className="text-right">
                           <div className="flex items-center gap-2 justify-end">
                             <span
-                              className={`badge whitespace-nowrap px-2 ${b.conversationId ? "badge-outline" : "badge-ghost"}`}
+                              className={`badge whitespace-nowrap px-2 min-w-[100px] justify-center ${
+                                b.employeeId ? "badge-primary badge-outline" : "badge-warning badge-outline"
+                              }`}
                             >
-                              {b.conversationId ? "Chat aktiv" : "Ingen chat"}
+                              {b.employeeId ? "Tilldelad" : "Ej tilldelad"}
                             </span>
                             {isEmployee &&
                               b.employeeId === user?.id &&
                               b.conversationId && (
                                 <button
                                   className="btn btn-primary btn-xs gap-1"
-                                  onClick={() => setSelectedBooking(b)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedBooking(b);
+                                  }}
                                 >
                                   <MessageCircle className="h-4 w-4" /> Chat
                                 </button>
@@ -197,7 +361,7 @@ const AdminDashboard: React.FC = () => {
         </section>
 
         {isEmployee && (
-          <section className="card bg-base-100 shadow-sm border border-base-300">
+          <section className="card bg-base-100 shadow-sm border border-base-300 rounded-xl">
             <div className="card-body">
               <h2 className="card-title">Mina tilldelade bokningar</h2>
               {sortedAssigned.length === 0 ? (
@@ -236,7 +400,7 @@ const AdminDashboard: React.FC = () => {
         {selectedBooking &&
           selectedBooking.conversationId &&
           selectedBooking.employeeId === user?.id && (
-            <section className="card bg-base-100 shadow-sm border border-base-300">
+            <section className="card bg-base-100 shadow-sm border border-base-300 rounded-xl">
               <div className="card-body">
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="card-title">Chat</h2>
@@ -253,6 +417,62 @@ const AdminDashboard: React.FC = () => {
               </div>
             </section>
           )}
+
+        {detailBooking && (
+          <section className="card bg-base-100 shadow-sm border border-base-300 rounded-xl">
+            <div className="card-body">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="card-title">Detaljer</h2>
+                <button className="btn btn-ghost btn-sm" onClick={() => setDetailBooking(null)}>
+                  Stäng
+                </button>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex gap-2">
+                  <span className="font-medium">Service:</span>
+                  <span>{serviceName(detailBooking.serviceId)}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="font-medium">Tid:</span>
+                  <span>{formatTime(detailBooking.startTime)}</span>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <span className="font-medium">Chat:</span>
+                  <span className="badge badge-outline">
+                    {detailBooking.conversationId ? "Chat aktiv" : "Ingen chat"}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="font-medium">Medarbetare:</span>
+                  <select
+                    className="select select-bordered select-sm"
+                    value={detailBooking.employeeId || ""}
+                    onChange={(e) => handleAssign(detailBooking.id, e.target.value)}
+                  >
+                    <option value="">Inte tilldelad</option>
+                    {employees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.firstName || ""} {emp.lastName || ""} ({emp.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {isEmployee &&
+                detailBooking.employeeId === user?.id &&
+                detailBooking.conversationId && (
+                  <div className="mt-3">
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => setSelectedBooking(detailBooking)}
+                    >
+                      <MessageCircle className="h-4 w-4" /> Öppna chat
+                    </button>
+                  </div>
+                )}
+            </div>
+          </section>
+        )}
       </div>
     </MainLayout>
   );

@@ -45,6 +45,13 @@ export interface BookingResponse {
   conversationId?: string;
   isChatOpen?: boolean;
   status?: string;
+  // Potential extra fields from backend
+  employeeName?: string;
+  customerName?: string;
+  serviceName?: string;
+  user?: { firstName?: string; lastName?: string; email?: string };
+  employee?: { firstName?: string; lastName?: string };
+  service?: { id: string; name: string; description?: string; duration?: string; price?: number };
 }
 
 export interface UserNameDTO {

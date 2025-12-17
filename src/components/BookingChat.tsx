@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useSignalRChat } from "@/hooks/useSignalRChat";
 import { useAuth } from "@/services/api/authContext";
 import type { BookingResponse, ChatMessage } from "@/services/api/types";
-import { Clock, MessageCircle, Send, ShieldAlert, WifiOff } from "lucide-react";
+import { getAllServices } from "@/services/api/serviceAPI";
+import { ArrowLeft, Clock, Info, MessageCircle, Send, ShieldAlert, WifiOff } from "lucide-react";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 
@@ -10,36 +12,183 @@ type BookingWithChat = BookingResponse & {
   conversationId: string;
 };
 
+const buildName = (...parts: (string | undefined)[]) =>
+  parts
+    .map((p) => p?.trim())
+    .filter((p): p is string => Boolean(p))
+    .join(" ");
+
+const looksLikeGuid = (val?: string) => {
+  const v = val?.trim() ?? "";
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+    v
+  );
+};
+
+const displayOrFallback = (name: string | undefined, fallback: string) => {
+  if (!name) return fallback;
+  return looksLikeGuid(name) ? fallback : name;
+};
+
 interface BookingChatProps {
   booking: BookingWithChat;
 }
 
+interface ChatMessageBubbleProps {
+  message: ChatMessage;
+  isMine: boolean;
+  senderName?: string;
+}
+
 const formatTimestamp = (ts: string) =>
-  format(new Date(ts), "d MMM HH:mm", { locale: sv });
+  format(new Date(ts), "HH:mm", { locale: sv });
+
+const shouldShowHeader = (
+  current: ChatMessage,
+  previous: ChatMessage | undefined
+): boolean => {
+  if (!previous) return true;
+  if (current.senderId !== previous.senderId) return true;
+
+  // Visa header om det gått mer än 5 minuter mellan meddelanden
+  const timeDiff = new Date(current.sentAt).getTime() - new Date(previous.sentAt).getTime();
+  return timeDiff > 5 * 60 * 1000;
+};
+
+const ChatMessageBubble: React.FC<ChatMessageBubbleProps & { showHeader?: boolean }> = ({
+  message,
+  isMine,
+  senderName,
+  showHeader = true,
+}) => {
+  return (
+    <div className={`chat ${isMine ? "chat-end" : "chat-start"} ${!showHeader ? "mt-0.5" : "mt-4"}`}>
+      {showHeader && (
+        <div className="chat-header text-xs opacity-50 mb-1">
+          {senderName}
+          <time className="ml-1">{formatTimestamp(message.sentAt)}</time>
+        </div>
+      )}
+      <div
+        className={`chat-bubble break-words ${
+          isMine ? "chat-bubble-primary" : "chat-bubble-secondary"
+        }`}
+      >
+        {message.content}
+      </div>
+    </div>
+  );
+};
 
 export const BookingChat: React.FC<BookingChatProps> = ({ booking }) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const currentUserId = user?.id;
+  // Om user-id saknas (t.ex. patientens egna bokning), använd booking.userId som fallback
+  const currentUserId = user?.id ?? booking.userId ?? "";
   const [draft, setDraft] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
+  const [fetchedServiceName, setFetchedServiceName] = useState<string | null>(null);
 
-  const {
-    messages,
-    sendMessage,
-    status,
-    isChatOpen,
-    isLoadingHistory,
-    error,
-  } = useSignalRChat({
-    conversationId: booking.conversationId,
-    currentUserId: currentUserId ?? undefined,
-    bookingMeta: {
-      startTime: booking.startTime,
-      endTime: booking.endTime,
-      status: booking.status,
-      isChatOpen: booking.isChatOpen,
-    },
-  });
+  // Hämta service-namn om det inte finns med i booking
+  useEffect(() => {
+    const fetchServiceName = async () => {
+      // Om vi redan har service-namnet, skippa
+      if (booking.service?.name || booking.serviceName) {
+        return;
+      }
+
+      // Annars hämta alla services och hitta rätt en
+      if (booking.serviceId) {
+        try {
+          const services = await getAllServices();
+          const service = services.find((s) => s.id === booking.serviceId);
+          if (service) {
+            setFetchedServiceName(service.name);
+          }
+        } catch (error) {
+          console.error("Failed to fetch service name:", error);
+        }
+      }
+    };
+
+    void fetchServiceName();
+  }, [booking.serviceId, booking.service, booking.serviceName]);
+
+  const serviceName = useMemo(
+    () => booking.service?.name || booking.serviceName || fetchedServiceName,
+    [booking, fetchedServiceName]
+  );
+
+  const bookingDateTime = useMemo(() => {
+    if (!booking.startTime) return '';
+    const date = new Date(booking.startTime);
+    const dateStr = date.toLocaleDateString('sv-SE', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    const timeStr = date.toLocaleTimeString('sv-SE', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return `${dateStr} • ${timeStr}`;
+  }, [booking.startTime]);
+
+  const employeeDisplayName = useMemo(() => {
+    const fromEmployee = buildName(
+      booking.employee?.firstName,
+      booking.employee?.lastName
+    );
+
+    return (
+      booking.employeeName?.trim() ||
+      fromEmployee ||
+      booking.employeeId ||
+      ""
+    );
+  }, [booking]);
+
+  const customerDisplayName = useMemo(() => {
+    const fromUser = buildName(booking.user?.firstName, booking.user?.lastName);
+    const emailHandle = booking.user?.email?.split("@")[0];
+
+    return (
+      booking.customerName?.trim() ||
+      fromUser ||
+      emailHandle ||
+      booking.userId ||
+      ""
+    );
+  }, [booking]);
+
+  const isCustomer =
+    !!currentUserId &&
+    !!booking.userId &&
+    currentUserId.toLowerCase() === booking.userId.toLowerCase();
+
+  const otherName = displayOrFallback(
+    isCustomer ? employeeDisplayName : customerDisplayName,
+    isCustomer ? "Personal" : "Kund"
+  );
+
+  const myDisplayName =
+    displayOrFallback(
+      buildName(user?.firstName, user?.lastName) ||
+        (isCustomer ? customerDisplayName : employeeDisplayName),
+      "Du"
+    );
+
+  const { messages, sendMessage, status, isChatOpen, isLoadingHistory, error } =
+    useSignalRChat({
+      conversationId: booking.conversationId,
+      currentUserId,
+      bookingMeta: {
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        status: booking.status,
+        isChatOpen: booking.isChatOpen,
+      },
+    });
 
   const sortedMessages = useMemo<ChatMessage[]>(
     () =>
@@ -70,17 +219,52 @@ export const BookingChat: React.FC<BookingChatProps> = ({ booking }) => {
       : null;
 
   return (
-    <div className="flex flex-col h-full rounded-2xl border border-base-300 bg-base-100 shadow-sm">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-base-300">
-        <MessageCircle className="h-5 w-5 text-primary" />
-        <div className="flex-1">
-          <p className="font-semibold">Chat</p>
-          <p className="text-xs text-base-content/60">
-            Booking {format(new Date(booking.startTime), "d MMM HH:mm", { locale: sv })}
-          </p>
+    <div className="flex flex-col h-[85vh] max-h-[900px] rounded-2xl border border-base-300 bg-base-100 shadow-lg">
+      <div className="border-b border-base-300 bg-base-200/40">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="btn btn-ghost btn-sm btn-circle shrink-0"
+            aria-label="Tillbaka"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <MessageCircle className="h-5 w-5 text-primary shrink-0" />
+          <div className="flex-1 min-w-0 flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="font-semibold text-base truncate">
+                {otherName}
+              </p>
+            </div>
+            {(serviceName || bookingDateTime) && (
+              <div className="text-right shrink-0">
+                {serviceName && (
+                  <p className="text-sm text-base-content/80 font-medium">
+                    {serviceName}
+                  </p>
+                )}
+                {bookingDateTime && (
+                  <p className="text-xs text-base-content/60 mt-0.5">
+                    {bookingDateTime}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          <StatusBadge status={status} />
         </div>
-        <StatusBadge status={status} />
       </div>
+
+      {isCustomer && (
+        <div className="bg-info/20 border-b border-info/30 px-4 py-2.5">
+          <div className="flex items-center gap-2 text-sm">
+            <Info className="h-4 w-4 text-info shrink-0" />
+            <p className="text-base-content/90 font-medium">
+              Du chattar med din sköterska {employeeDisplayName ? `(${displayOrFallback(employeeDisplayName, "Personal")})` : ""} om din kommande behandling
+            </p>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="alert alert-warning rounded-none">
@@ -98,7 +282,7 @@ export const BookingChat: React.FC<BookingChatProps> = ({ booking }) => {
 
       <div
         ref={listRef}
-        className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-base-200/40"
+        className="flex-1 overflow-y-auto px-4 py-3 bg-base-200/40"
       >
         {isLoadingHistory && (
           <div className="text-sm text-base-content/60">Loading history...</div>
@@ -107,55 +291,45 @@ export const BookingChat: React.FC<BookingChatProps> = ({ booking }) => {
           <div className="text-sm text-base-content/60">No messages yet.</div>
         )}
 
-        {sortedMessages.map((m) => {
-          const isMine = m.senderId === currentUserId;
+        {sortedMessages.map((m, index) => {
+          const isMine =
+            !!m.senderId &&
+            !!currentUserId &&
+            m.senderId.toLowerCase() === currentUserId.toLowerCase();
+
+          const senderLabel = isMine ? myDisplayName : otherName;
+          const previousMessage = index > 0 ? sortedMessages[index - 1] : undefined;
+          const showHeader = shouldShowHeader(m, previousMessage);
+
           return (
-            <div
+            <ChatMessageBubble
               key={`${m.id ?? ""}-${m.sentAt}-${m.senderId}-${m.content}`}
-              className={`flex ${isMine ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`max-w-[75%] rounded-2xl px-3 py-2 shadow-sm ${
-                  isMine
-                    ? "bg-primary text-primary-content rounded-br-sm"
-                    : "bg-base-100 border border-base-300 rounded-bl-sm"
-                }`}
-              >
-                <p className="text-sm whitespace-pre-wrap break-words">
-                  {m.content}
-                </p>
-                <p
-                  className={`mt-1 text-[11px] ${
-                    isMine ? "text-primary-content/80" : "text-base-content/60"
-                  }`}
-                >
-                  {formatTimestamp(m.sentAt)}
-                </p>
-              </div>
-            </div>
+              message={m}
+              isMine={isMine}
+              senderName={senderLabel || (isMine ? "Du" : "Gäst")}
+              showHeader={showHeader}
+            />
           );
         })}
       </div>
 
-      <form onSubmit={onSend} className="border-t border-base-300 p-3">
-        <div className="join w-full">
+      <form onSubmit={onSend} className="border-t border-base-300 p-4 bg-base-100">
+        <div className="flex gap-2">
           <input
-            className="input input-bordered join-item w-full"
+            className="input input-bordered flex-1 focus:outline-none focus:ring-2 focus:ring-primary"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder={
-              closedReason ? "Chat is closed" : "Write a message..."
-            }
+            placeholder={closedReason ? "Chatten är stängd" : "Skriv ett meddelande..."}
             disabled={!isChatOpen || !currentUserId}
           />
           <button
             type="submit"
-            className="btn btn-primary join-item"
+            className="btn btn-primary gap-2"
             disabled={!draft.trim() || !isChatOpen || !currentUserId}
-            title={!currentUserId ? "You need to be logged in" : undefined}
+            title={!currentUserId ? "Du måste vara inloggad" : undefined}
           >
             <Send className="h-4 w-4" />
-            Skicka
+            <span className="hidden sm:inline">Skicka</span>
           </button>
         </div>
       </form>

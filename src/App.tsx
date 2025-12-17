@@ -5,6 +5,7 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 // Import Pages
 import LoginPage from "@/pages/LoginPage";
@@ -22,12 +23,14 @@ import ServiceDetailsPage from "@/pages/ServiceDetailsPage";
 import BookingsHistoryPage from "@/pages/BookingsHistoryPage";
 import EmployeeDashboard from "@/pages/EmployeeDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
+import ChatPage from "@/pages/ChatPage";
 
 function App() {
   return (
     <Router>
       <AuthProvider>
         <ThemeProvider>
+          <Toaster position="top-right" richColors />
           <Routes>
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/login" element={<LoginPage />} />
@@ -100,6 +103,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chat/:bookingId"
+              element={
+                <ProtectedRoute>
+                  <ChatPage />
                 </ProtectedRoute>
               }
             />

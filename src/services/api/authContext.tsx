@@ -57,15 +57,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const accessToken = getCookie("accessToken");
 
-      // Decode role from token as fallback if ME omits it
+      // Decode role and sub (userId) from token as fallback
       let decodedRole: string | undefined;
+      let decodedSub: string | undefined;
+
       if (accessToken) {
         try {
-          const decoded = jwtDecode<JwtPayload & Record<string, unknown>>(accessToken);
+          const decoded = jwtDecode<JwtPayload & Record<string, unknown>>(
+            accessToken
+          );
           decodedRole =
             (decoded?.role as string | undefined) ||
             (decoded?.Role as string | undefined) ||
-            (decoded?.["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] as string | undefined);
+            (decoded?.[
+              "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+            ] as string | undefined);
+
+          decodedSub = decoded?.sub;
         } catch (err) {
           console.warn("Could not decode access token", err);
         }
@@ -77,7 +85,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           ? { Authorization: `Bearer ${accessToken}` }
           : undefined,
       });
-      const { userId, email, role } = response.data;
+
+      const data = response.data || {};
+      const userId =
+        data.userId || data.UserId || data.id || data.Id || decodedSub;
+      const email = data.email || data.Email;
+      const role = data.role || data.Role;
 
       // Hämta användarens för- och efternamn
       let firstName = undefined;
