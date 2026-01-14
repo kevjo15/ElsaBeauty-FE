@@ -19,6 +19,8 @@ type RawChatMessage = Partial<{
   Content: string;
   sentAt: string;
   SentAt: string;
+  readAt: string;
+  ReadAt: string;
 }>;
 
 const toChatMessage = (raw: RawChatMessage | unknown): ChatMessage => {
@@ -35,6 +37,7 @@ const toChatMessage = (raw: RawChatMessage | unknown): ChatMessage => {
     senderId: sender,
     content: r.content ?? r.Content ?? "",
     sentAt: r.sentAt ?? r.SentAt ?? new Date().toISOString(),
+    readAt: r.readAt ?? r.ReadAt,
   };
 };
 
