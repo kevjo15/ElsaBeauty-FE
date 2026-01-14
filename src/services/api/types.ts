@@ -65,6 +65,7 @@ export interface ChatMessage {
   senderId: string;
   content: string;
   sentAt: string;
+  readAt?: string;
 }
 
 export interface BookingChatMeta {

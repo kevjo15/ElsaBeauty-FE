@@ -62,7 +62,11 @@ const ChatMessageBubble: React.FC<ChatMessageBubbleProps & { showHeader?: boolea
   showHeader = true,
 }) => {
   return (
-    <div className={`chat ${isMine ? "chat-end" : "chat-start"} ${!showHeader ? "mt-0.5" : "mt-4"}`}>
+    <div
+      className={`chat ${isMine ? "chat-end" : "chat-start"} ${!showHeader ? "mt-0.5" : "mt-4"}`}
+      data-message-id={message.id}
+      data-sender-id={message.senderId}
+    >
       {showHeader && (
         <div className="chat-header text-xs opacity-50 mb-1">
           {senderName}
@@ -70,12 +74,22 @@ const ChatMessageBubble: React.FC<ChatMessageBubbleProps & { showHeader?: boolea
         </div>
       )}
       <div
-        className={`chat-bubble break-words ${
+        className={`chat-bubble break-words max-w-xs sm:max-w-md md:max-w-lg overflow-wrap-anywhere ${
           isMine ? "chat-bubble-primary" : "chat-bubble-secondary"
         }`}
+        style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
       >
         {message.content}
       </div>
+      {isMine && (
+        <div className="chat-footer opacity-50 text-xs mt-0.5">
+          {message.readAt ? (
+            <span title={`Läst ${formatTimestamp(message.readAt)}`}>✓✓</span>
+          ) : (
+            <span>✓</span>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -178,7 +192,7 @@ export const BookingChat: React.FC<BookingChatProps> = ({ booking }) => {
       "Du"
     );
 
-  const { messages, sendMessage, status, isChatOpen, isLoadingHistory, error } =
+  const { messages, sendMessage, markAsRead, status, isChatOpen, isLoadingHistory, error } =
     useSignalRChat({
       conversationId: booking.conversationId,
       currentUserId,
@@ -205,6 +219,37 @@ export const BookingChat: React.FC<BookingChatProps> = ({ booking }) => {
       el.scrollTop = el.scrollHeight;
     }
   }, [sortedMessages.length]);
+
+  // Mark messages as read when they become visible
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const messageId = entry.target.getAttribute('data-message-id');
+            const senderId = entry.target.getAttribute('data-sender-id');
+
+            // Only mark as read if it's not my message and has an ID
+            if (messageId && senderId && senderId !== currentUserId) {
+              void markAsRead(messageId);
+            }
+          }
+        });
+      },
+      {
+        root: listRef.current,
+        threshold: 0.5, // Mark as read when 50% of message is visible
+      }
+    );
+
+    // Observe all message bubbles
+    const messageElements = listRef.current?.querySelectorAll('[data-message-id]');
+    messageElements?.forEach((el) => observer.observe(el));
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [sortedMessages, currentUserId, markAsRead]);
 
   const onSend = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -35,6 +35,7 @@ interface UseSignalRChatOptions {
 interface UseSignalRChatResult {
   messages: ChatMessage[];
   sendMessage: (text: string) => Promise<void>;
+  markAsRead: (messageId: string) => Promise<void>;
   status: ConnectionStatus;
   isChatOpen: boolean;
   isLoadingHistory: boolean;
@@ -219,6 +220,15 @@ export function useSignalRChat({
           playNotificationSound();
         }
       });
+      // Listen for read receipts
+      connection.on("MessageRead", (data: { messageId: string; readAt: string; readBy: string }) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === data.messageId ? { ...m, readAt: data.readAt } : m
+          )
+        );
+      });
+
       // Avoid console warnings for hub callbacks we don't actively use
       connection.on("JoinedConversation", () => {});
       connection.on("LeftConversation", () => {});
@@ -325,9 +335,32 @@ export function useSignalRChat({
     [conversationId, currentUserId, isChatOpen, upsertMessage]
   );
 
+  const markAsRead = useCallback(
+    async (messageId: string) => {
+      if (!conversationId || !messageId) return;
+
+      try {
+        if (
+          connectionRef.current &&
+          connectionRef.current.state === HubConnectionState.Connected
+        ) {
+          await connectionRef.current.invoke(
+            "MarkMessageAsRead",
+            messageId,
+            conversationId
+          );
+        }
+      } catch (err) {
+        console.error("Mark as read failed", err);
+      }
+    },
+    [conversationId]
+  );
+
   return {
     messages,
     sendMessage,
+    markAsRead,
     status,
     isChatOpen,
     isLoadingHistory,
