@@ -36,6 +36,9 @@ interface UseSignalRChatResult {
   messages: ChatMessage[];
   sendMessage: (text: string) => Promise<void>;
   markAsRead: (messageId: string) => Promise<void>;
+  startTyping: () => void;
+  stopTyping: () => void;
+  isOtherUserTyping: boolean;
   status: ConnectionStatus;
   isChatOpen: boolean;
   isLoadingHistory: boolean;
@@ -54,7 +57,15 @@ export function useSignalRChat({
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [error, setError] = useState<string>();
+  const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
   const connectionRef = useRef<HubConnection | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const currentUserIdRef = useRef<string | undefined>(currentUserId);
+
+  // Keep ref in sync with prop
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId;
+  }, [currentUserId]);
 
   // Request notification permission when hook mounts
   useEffect(() => {
@@ -221,17 +232,56 @@ export function useSignalRChat({
         }
       });
       // Listen for read receipts
-      connection.on("MessageRead", (data: { messageId: string; readAt: string; readBy: string }) => {
+      connection.on("MessageRead", (data: { MessageId?: string; messageId?: string; ReadAt?: string; readAt?: string; ReadBy?: string; readBy?: string }) => {
+        const msgId = data.MessageId ?? data.messageId;
+        const readAtTime = data.ReadAt ?? data.readAt;
+        console.log("MessageRead received:", { msgId, readAtTime, rawData: data });
+
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === data.messageId ? { ...m, readAt: data.readAt } : m
+            m.id === msgId ? { ...m, readAt: readAtTime } : m
           )
         );
       });
 
-      // Avoid console warnings for hub callbacks we don't actively use
-      connection.on("JoinedConversation", () => {});
-      connection.on("LeftConversation", () => {});
+      // Listen for typing indicators
+      connection.on("UserTyping", (data: { UserId?: string; userId?: string; IsTyping?: boolean; isTyping?: boolean; ConversationId?: string; conversationId?: string }) => {
+        console.log("=== UserTyping EVENT RECEIVED ===");
+        console.log("Raw data:", JSON.stringify(data));
+        const typingUserId = data.UserId ?? data.userId;
+        const isTyping = data.IsTyping ?? data.isTyping ?? false;
+        const eventConversationId = data.ConversationId ?? data.conversationId;
+        const myUserId = currentUserIdRef.current;
+
+        console.log("Parsed:", { typingUserId, isTyping, eventConversationId, myUserId, currentConversationId: conversationId });
+
+        // Only show typing indicator if it's not from current user
+        if (typingUserId && typingUserId !== myUserId) {
+          console.log(">>> Setting isOtherUserTyping to:", isTyping);
+          setIsOtherUserTyping(isTyping);
+
+          // Auto-clear typing indicator after 5 seconds (in case StopTyping is missed)
+          if (isTyping) {
+            if (typingTimeoutRef.current) {
+              clearTimeout(typingTimeoutRef.current);
+            }
+            typingTimeoutRef.current = setTimeout(() => {
+              console.log(">>> Auto-clearing typing indicator after timeout");
+              setIsOtherUserTyping(false);
+            }, 5000);
+          }
+        } else {
+          console.log(">>> Ignoring typing event (from self or missing userId)");
+        }
+      });
+
+      // Log when we successfully join a conversation
+      connection.on("JoinedConversation", (convId: string) => {
+        console.log("=== JOINED CONVERSATION ===", convId);
+      });
+      connection.on("LeftConversation", (convId: string) => {
+        console.log("=== LEFT CONVERSATION ===", convId);
+      });
 
       connection.onreconnecting(() => {
         if (isMounted) setStatus("reconnecting");
@@ -337,18 +387,25 @@ export function useSignalRChat({
 
   const markAsRead = useCallback(
     async (messageId: string) => {
-      if (!conversationId || !messageId) return;
+      if (!conversationId || !messageId) {
+        console.log("markAsRead skipped - missing data:", { conversationId, messageId });
+        return;
+      }
 
       try {
         if (
           connectionRef.current &&
           connectionRef.current.state === HubConnectionState.Connected
         ) {
+          console.log("Invoking MarkMessageAsRead:", { messageId, conversationId });
           await connectionRef.current.invoke(
             "MarkMessageAsRead",
             messageId,
             conversationId
           );
+          console.log("MarkMessageAsRead successful");
+        } else {
+          console.log("Connection not ready for markAsRead");
         }
       } catch (err) {
         console.error("Mark as read failed", err);
@@ -357,10 +414,49 @@ export function useSignalRChat({
     [conversationId]
   );
 
+  const startTyping = useCallback(() => {
+    if (!conversationId) {
+      console.log("startTyping: No conversationId");
+      return;
+    }
+
+    try {
+      if (
+        connectionRef.current &&
+        connectionRef.current.state === HubConnectionState.Connected
+      ) {
+        console.log("=== INVOKING StartTyping ===", { conversationId, userId: currentUserIdRef.current });
+        void connectionRef.current.invoke("StartTyping", conversationId);
+      } else {
+        console.log("startTyping: Connection not ready, state:", connectionRef.current?.state);
+      }
+    } catch (err) {
+      console.error("StartTyping failed", err);
+    }
+  }, [conversationId]);
+
+  const stopTyping = useCallback(() => {
+    if (!conversationId) return;
+
+    try {
+      if (
+        connectionRef.current &&
+        connectionRef.current.state === HubConnectionState.Connected
+      ) {
+        void connectionRef.current.invoke("StopTyping", conversationId);
+      }
+    } catch (err) {
+      console.error("StopTyping failed", err);
+    }
+  }, [conversationId]);
+
   return {
     messages,
     sendMessage,
     markAsRead,
+    startTyping,
+    stopTyping,
+    isOtherUserTyping,
     status,
     isChatOpen,
     isLoadingHistory,

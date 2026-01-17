@@ -66,6 +66,7 @@ const ChatMessageBubble: React.FC<ChatMessageBubbleProps & { showHeader?: boolea
       className={`chat ${isMine ? "chat-end" : "chat-start"} ${!showHeader ? "mt-0.5" : "mt-4"}`}
       data-message-id={message.id}
       data-sender-id={message.senderId}
+      data-read={message.readAt ? 'true' : 'false'}
     >
       {showHeader && (
         <div className="chat-header text-xs opacity-50 mb-1">
@@ -82,11 +83,11 @@ const ChatMessageBubble: React.FC<ChatMessageBubbleProps & { showHeader?: boolea
         {message.content}
       </div>
       {isMine && (
-        <div className="chat-footer opacity-50 text-xs mt-0.5">
+        <div className="chat-footer text-xs mt-0.5">
           {message.readAt ? (
-            <span title={`Läst ${formatTimestamp(message.readAt)}`}>✓✓</span>
+            <span className="text-info" title={`Läst ${formatTimestamp(message.readAt)}`}>✓✓</span>
           ) : (
-            <span>✓</span>
+            <span className="opacity-50">✓</span>
           )}
         </div>
       )}
@@ -192,7 +193,7 @@ export const BookingChat: React.FC<BookingChatProps> = ({ booking }) => {
       "Du"
     );
 
-  const { messages, sendMessage, markAsRead, status, isChatOpen, isLoadingHistory, error } =
+  const { messages, sendMessage, markAsRead, startTyping, stopTyping, isOtherUserTyping, status, isChatOpen, isLoadingHistory, error } =
     useSignalRChat({
       conversationId: booking.conversationId,
       currentUserId,
@@ -222,15 +223,32 @@ export const BookingChat: React.FC<BookingChatProps> = ({ booking }) => {
 
   // Mark messages as read when they become visible
   useEffect(() => {
+    // Track which messages we've already marked as read to avoid duplicates
+    const markedAsRead = new Set<string>();
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             const messageId = entry.target.getAttribute('data-message-id');
             const senderId = entry.target.getAttribute('data-sender-id');
+            const isAlreadyRead = entry.target.getAttribute('data-read') === 'true';
 
-            // Only mark as read if it's not my message and has an ID
-            if (messageId && senderId && senderId !== currentUserId) {
+            // Only mark as read if:
+            // - Has a valid message ID
+            // - Is not my message
+            // - Is not already read
+            // - Haven't already sent a mark-as-read for this message
+            if (
+              messageId &&
+              messageId !== 'undefined' &&
+              senderId &&
+              senderId !== currentUserId &&
+              !isAlreadyRead &&
+              !markedAsRead.has(messageId)
+            ) {
+              markedAsRead.add(messageId);
+              console.log('Marking message as read:', messageId);
               void markAsRead(messageId);
             }
           }
@@ -251,9 +269,48 @@ export const BookingChat: React.FC<BookingChatProps> = ({ booking }) => {
     };
   }, [sortedMessages, currentUserId, markAsRead]);
 
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTypingSentRef = useRef<number>(0);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDraft(e.target.value);
+
+    const hasText = e.target.value.trim().length > 0;
+
+    // Send startTyping every 2 seconds while typing (to keep indicator alive)
+    const now = Date.now();
+    if (hasText && now - lastTypingSentRef.current > 2000) {
+      lastTypingSentRef.current = now;
+      startTyping();
+    }
+
+    // Clear previous timeout and set new one
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Stop typing after 2.5 seconds of inactivity
+    if (hasText) {
+      typingTimeoutRef.current = setTimeout(() => {
+        stopTyping();
+      }, 2500);
+    } else {
+      // If text is empty, stop typing immediately
+      stopTyping();
+    }
+  };
+
   const onSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!draft.trim()) return;
+
+    // Stop typing when sending
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    stopTyping();
+    lastTypingSentRef.current = 0;
+
     await sendMessage(draft);
     setDraft("");
   };
@@ -356,14 +413,25 @@ export const BookingChat: React.FC<BookingChatProps> = ({ booking }) => {
             />
           );
         })}
+
       </div>
+
+      {/* Typing indicator - fixed position above input */}
+      {isOtherUserTyping && (
+        <div className="px-4 py-2 bg-base-200/50 border-t border-base-300">
+          <div className="flex items-center gap-2 text-sm text-base-content/70">
+            <span className="loading loading-dots loading-xs"></span>
+            <span>{otherName} skriver...</span>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={onSend} className="border-t border-base-300 p-4 bg-base-100">
         <div className="flex gap-2">
           <input
             className="input input-bordered flex-1 focus:outline-none focus:ring-2 focus:ring-primary"
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={handleInputChange}
             placeholder={closedReason ? "Chatten är stängd" : "Skriv ett meddelande..."}
             disabled={!isChatOpen || !currentUserId}
           />
