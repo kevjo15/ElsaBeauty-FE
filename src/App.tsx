@@ -24,6 +24,8 @@ import BookingsHistoryPage from "@/pages/BookingsHistoryPage";
 import EmployeeDashboard from "@/pages/EmployeeDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import ChatPage from "@/pages/ChatPage";
+import ProfilePage from "@/pages/ProfilePage";
+import CustomerDashboard from "@/pages/CustomerDashboard";
 
 function App() {
   return (
@@ -32,13 +34,17 @@ function App() {
         <ThemeProvider>
           <Toaster position="top-right" richColors />
           <Routes>
+            {/* Publika routes */}
+            <Route path="/" element={<HomePage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/login" element={<LoginPage />} />
+
+            {/* Skyddade routes */}
             <Route
-              path="/home"
+              path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <HomePage />
+                  <CustomerDashboard />
                 </ProtectedRoute>
               }
             />
@@ -59,7 +65,7 @@ function App() {
               }
             />
             <Route
-              path="/booking-confirmation"
+              path="/booking-confirmation/:bookingId?"
               element={
                 <ProtectedRoute>
                   <BookingConfirmationPage />
@@ -114,7 +120,16 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            {/* Redirect /home till /dashboard för bakåtkompatibilitet */}
+            <Route path="/home" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </ThemeProvider>
       </AuthProvider>

@@ -14,7 +14,7 @@ export function useLogin() {
     try {
       await loginUserApi(email, password);
       setLoading(false);
-      navigate("/home");
+      navigate("/dashboard");
     } catch (err: unknown) {
       setLoading(false);
       if (err instanceof Error) {
