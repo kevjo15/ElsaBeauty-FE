@@ -2,7 +2,8 @@ import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/services/api/authContext";
 import ModeToggle from "@/components/mode-toggle";
-import { Menu, Home, Scissors, Calendar, LogOut } from "lucide-react";
+import Footer from "@/components/layout/Footer";
+import { Menu, Home, Scissors, Calendar, LogOut, Shield, Briefcase } from "lucide-react";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,10 @@ interface MainLayoutProps {
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const role = user?.role?.toLowerCase() || "";
+  const isAdmin = role.includes("admin");
+  const isEmployee = role.includes("employee");
 
   const handleLogout = async () => {
     try {
@@ -45,7 +50,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-base-100 rounded-box w-56"
             >
               <li>
-                <NavLink to="/home" className={linkClass}>
+                <NavLink to="/dashboard" className={linkClass}>
                   <Home className="h-4 w-4" />
                   Dashboard
                 </NavLink>
@@ -62,6 +67,22 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   Bokningar
                 </NavLink>
               </li>
+              {isEmployee && !isAdmin && (
+                <li>
+                  <NavLink to="/employee" className={linkClass}>
+                    <Briefcase className="h-4 w-4" />
+                    Medarbetare
+                  </NavLink>
+                </li>
+              )}
+              {isAdmin && (
+                <li>
+                  <NavLink to="/admin" className={linkClass}>
+                    <Shield className="h-4 w-4" />
+                    Admin
+                  </NavLink>
+                </li>
+              )}
               <li className="mt-2">
                 <button onClick={handleLogout} className="btn btn-ghost btn-sm">
                   <LogOut className="h-4 w-4" />
@@ -73,7 +94,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
           <button
             className="btn btn-ghost text-xl font-semibold"
-            onClick={() => navigate("/home")}
+            onClick={() => navigate("/dashboard")}
           >
             ElsaBeauty
           </button>
@@ -82,7 +103,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         {/* Center: Desktop nav */}
         <div className="navbar-center hidden lg:flex">
           <nav className="flex items-center gap-2">
-            <NavLink to="/home" className={linkClass}>
+            <NavLink to="/dashboard" className={linkClass}>
               <Home className="h-4 w-4" />
               Dashboard
             </NavLink>
@@ -94,6 +115,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               <Calendar className="h-4 w-4" />
               Bokningar
             </NavLink>
+            {isEmployee && !isAdmin && (
+              <NavLink to="/employee" className={linkClass}>
+                <Briefcase className="h-4 w-4" />
+                Medarbetare
+              </NavLink>
+            )}
+            {isAdmin && (
+              <NavLink to="/admin" className={linkClass}>
+                <Shield className="h-4 w-4" />
+                Admin
+              </NavLink>
+            )}
           </nav>
         </div>
 
@@ -118,6 +151,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               tabIndex={0}
               className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-base-100 rounded-box w-56"
             >
+              <li className="menu-title px-4 py-2">
+                <span className="text-sm font-medium">
+                  {user?.firstName || user?.email || "Användare"}
+                </span>
+                {user?.role && (
+                  <span className="text-xs text-base-content/60">
+                    {isAdmin ? "Administratör" : isEmployee ? "Medarbetare" : "Kund"}
+                  </span>
+                )}
+              </li>
+              <div className="divider my-0"></div>
               <li>
                 <a onClick={() => navigate("/profile")}>Profil</a>
               </li>
@@ -134,6 +178,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
       {/* Main Content */}
       <main className="flex-1 p-6">{children}</main>
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };
