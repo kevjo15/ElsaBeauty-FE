@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/components/layout/main-layout";
 import { useAuth } from "@/services/api/authContext";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, User } from "lucide-react";
 import {
   addDays,
   endOfDay,
@@ -21,6 +21,54 @@ import { getEmployees } from "@/services/api/userAPI";
 import { getAllServices } from "@/services/api/serviceAPI";
 import type { BookingResponse, Employee, Service } from "@/services/api/types";
 import { useNavigate } from "react-router-dom";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
+
+// Helper to get customer display name
+const customerName = (b: BookingResponse): string => {
+  const name = [b.user?.firstName, b.user?.lastName].filter(Boolean).join(" ");
+  return name || b.customerName || b.user?.email || "Okänd kund";
+};
+
+// Helper to get status badge styling
+const getStatusBadge = (b: BookingResponse): { text: string; className: string } => {
+  const now = new Date();
+  const start = new Date(b.startTime);
+  const end = new Date(b.endTime);
+
+  if (b.status) {
+    const s = b.status.toLowerCase();
+    if (s.includes("cancel")) return { text: "Avbokad", className: "badge-error" };
+    if (s.includes("complete")) return { text: "Avslutad", className: "badge-success" };
+  }
+
+  if (end < now) return { text: "Avslutad", className: "badge-success" };
+  if (start <= now && end >= now) return { text: "Pågående", className: "badge-warning" };
+  return { text: "Bokad", className: "badge-info" };
+};
+
+// Chat button with unread badge
+const ChatButtonWithBadge: React.FC<{
+  booking: BookingResponse;
+  userId: string;
+  onClick: (e: React.MouseEvent) => void;
+}> = ({ booking, userId, onClick }) => {
+  const unread = useUnreadCount(booking.conversationId, userId);
+
+  return (
+    <button
+      className="btn btn-primary btn-sm gap-1 relative"
+      onClick={onClick}
+    >
+      <MessageCircle className="h-4 w-4" />
+      Chat
+      {unread > 0 && (
+        <span className="badge badge-error badge-xs absolute -top-1 -right-1 text-[10px] min-w-[18px] h-[18px]">
+          {unread > 9 ? "9+" : unread}
+        </span>
+      )}
+    </button>
+  );
+};
 
 const EmployeeDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -137,16 +185,6 @@ const EmployeeDashboard: React.FC = () => {
     ).length;
     return { todayCount, upcomingWeek, completed };
   }, [assigned]);
-
-  const derivedStatus = (b: BookingResponse) => {
-    if (b.status) return b.status;
-    const now = new Date();
-    const start = new Date(b.startTime);
-    const end = new Date(b.endTime);
-    if (end < now) return "Avslutad";
-    if (start <= now && end >= now) return "Pågående";
-    return "Kommande";
-  };
 
   const filteredBookings = useMemo(() => bookingsForWeek, [bookingsForWeek]);
 
@@ -273,69 +311,79 @@ const EmployeeDashboard: React.FC = () => {
                 <p className="text-sm text-base-content/60">Inga bokningar matchar filtret.</p>
               ) : (
                 <ul className="divide-y divide-base-300">
-                  {todayBookings.map((b) => (
-                    <li
-                      key={b.id}
-                      className="py-3 flex items-center justify-between cursor-pointer hover:bg-base-200/40 rounded"
-                      onClick={() => setDetailBooking(b)}
-                    >
-                      <div>
-                        <p className="font-medium">{formatTime(b.startTime)}</p>
-                        <p className="text-sm text-base-content/60">
-                          {serviceName(b.serviceId)}
-                        </p>
-                        <span className="badge badge-primary badge-outline mt-1">Idag</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="badge badge-outline">
-                          {b.conversationId ? "Chat aktiv" : "Ingen chat"}
-                        </span>
-                        <span className="badge badge-ghost">{derivedStatus(b)}</span>
-                        {b.conversationId && (
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/chat/${b.id}`, { state: { booking: b } });
-                            }}
-                          >
-                            <MessageCircle className="h-4 w-4" /> Chat
-                          </button>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                  {upcomingBookings.map((b) => (
-                    <li
-                      key={b.id}
-                      className="py-3 flex items-center justify-between cursor-pointer hover:bg-base-200/40 rounded"
-                      onClick={() => setDetailBooking(b)}
-                    >
-                      <div>
-                        <p className="font-medium">{formatTime(b.startTime)}</p>
-                        <p className="text-sm text-base-content/60">
-                          {serviceName(b.serviceId)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="badge badge-outline">
-                          {b.conversationId ? "Chat aktiv" : "Ingen chat"}
-                        </span>
-                        <span className="badge badge-ghost">{derivedStatus(b)}</span>
-                        {b.conversationId && (
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/chat/${b.id}`, { state: { booking: b } });
-                            }}
-                          >
-                            <MessageCircle className="h-4 w-4" /> Chat
-                          </button>
-                        )}
-                      </div>
-                    </li>
-                  ))}
+                  {todayBookings.map((b) => {
+                    const status = getStatusBadge(b);
+                    return (
+                      <li
+                        key={b.id}
+                        className="py-3 flex items-center justify-between cursor-pointer hover:bg-base-200/40 rounded"
+                        onClick={() => setDetailBooking(b)}
+                      >
+                        <div>
+                          <p className="font-medium">{formatTime(b.startTime)}</p>
+                          <p className="text-sm text-base-content/60">
+                            {serviceName(b.serviceId)}
+                          </p>
+                          <p className="text-xs text-base-content/50 flex items-center gap-1 mt-1">
+                            <User className="h-3 w-3" />
+                            {customerName(b)}
+                          </p>
+                          <span className="badge badge-primary badge-outline mt-1">Idag</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`badge badge-outline ${status.className}`}>
+                            {status.text}
+                          </span>
+                          {b.conversationId && (
+                            <ChatButtonWithBadge
+                              booking={b}
+                              userId={user?.id || ""}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/chat/${b.id}`, { state: { booking: b } });
+                              }}
+                            />
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                  {upcomingBookings.map((b) => {
+                    const status = getStatusBadge(b);
+                    return (
+                      <li
+                        key={b.id}
+                        className="py-3 flex items-center justify-between cursor-pointer hover:bg-base-200/40 rounded"
+                        onClick={() => setDetailBooking(b)}
+                      >
+                        <div>
+                          <p className="font-medium">{formatTime(b.startTime)}</p>
+                          <p className="text-sm text-base-content/60">
+                            {serviceName(b.serviceId)}
+                          </p>
+                          <p className="text-xs text-base-content/50 flex items-center gap-1 mt-1">
+                            <User className="h-3 w-3" />
+                            {customerName(b)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`badge badge-outline ${status.className}`}>
+                            {status.text}
+                          </span>
+                          {b.conversationId && (
+                            <ChatButtonWithBadge
+                              booking={b}
+                              userId={user?.id || ""}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/chat/${b.id}`, { state: { booking: b } });
+                              }}
+                            />
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
@@ -404,6 +452,16 @@ const EmployeeDashboard: React.FC = () => {
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex gap-2">
+                  <span className="font-medium">Kund:</span>
+                  <span className="flex items-center gap-1">
+                    <User className="h-4 w-4 text-base-content/50" />
+                    {customerName(detailBooking)}
+                    {detailBooking.user?.email && (
+                      <span className="text-base-content/50">({detailBooking.user.email})</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex gap-2">
                   <span className="font-medium">Service:</span>
                   <span>{serviceName(detailBooking.serviceId)}</span>
                 </div>
@@ -415,7 +473,14 @@ const EmployeeDashboard: React.FC = () => {
                 </div>
                 <div className="flex gap-2 items-center">
                   <span className="font-medium">Status:</span>
-                  <span className="badge badge-ghost">{derivedStatus(detailBooking)}</span>
+                  {(() => {
+                    const status = getStatusBadge(detailBooking);
+                    return (
+                      <span className={`badge badge-outline ${status.className}`}>
+                        {status.text}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="flex gap-2 items-center">
                   <span className="font-medium">Chat:</span>
@@ -426,14 +491,13 @@ const EmployeeDashboard: React.FC = () => {
               </div>
               {detailBooking.conversationId && (
                 <div className="mt-4">
-                  <button
-                    className="btn btn-primary btn-sm"
+                  <ChatButtonWithBadge
+                    booking={detailBooking}
+                    userId={user?.id || ""}
                     onClick={() =>
                       navigate(`/chat/${detailBooking.id}`, { state: { booking: detailBooking } })
                     }
-                  >
-                    <MessageCircle className="h-4 w-4" /> Öppna chat
-                  </button>
+                  />
                 </div>
               )}
             </div>
