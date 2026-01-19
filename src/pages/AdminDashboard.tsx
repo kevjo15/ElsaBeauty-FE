@@ -12,7 +12,58 @@ import { getAllServices } from "@/services/api/serviceAPI";
 import type { BookingResponse, Employee, Service } from "@/services/api/types";
 import { addDays, format, startOfDay } from "date-fns";
 import { sv } from "date-fns/locale";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, User } from "lucide-react";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
+
+// Helper to get customer display name
+const customerName = (b: BookingResponse): string => {
+  const name = [b.user?.firstName, b.user?.lastName].filter(Boolean).join(" ");
+  return name || b.customerName || b.user?.email || "Okänd kund";
+};
+
+// Helper to get booking status badge
+const getStatusBadge = (b: BookingResponse): { text: string; className: string } => {
+  const now = new Date();
+  const start = new Date(b.startTime);
+  const end = new Date(b.endTime);
+
+  // If explicit status exists, use it
+  if (b.status) {
+    const s = b.status.toLowerCase();
+    if (s.includes("cancel")) return { text: "Avbokad", className: "badge-error" };
+    if (s.includes("complete")) return { text: "Avslutad", className: "badge-success" };
+  }
+
+  // Otherwise calculate from time
+  if (end < now) return { text: "Avslutad", className: "badge-success" };
+  if (start <= now && end >= now) return { text: "Pågående", className: "badge-warning" };
+  return { text: "Bokad", className: "badge-info" };
+};
+
+// Chat button with unread badge
+const ChatButtonWithBadge: React.FC<{
+  booking: BookingResponse;
+  userId: string;
+  onClick: (e: React.MouseEvent) => void;
+  size?: "xs" | "sm";
+}> = ({ booking, userId, onClick, size = "xs" }) => {
+  const unread = useUnreadCount(booking.conversationId, userId);
+
+  return (
+    <button
+      className={`btn btn-primary btn-${size} gap-1 relative`}
+      onClick={onClick}
+    >
+      <MessageCircle className="h-4 w-4" />
+      Chat
+      {unread > 0 && (
+        <span className="badge badge-error badge-xs absolute -top-1 -right-1 text-[10px] min-w-[18px] h-[18px]">
+          {unread > 9 ? "9+" : unread}
+        </span>
+      )}
+    </button>
+  );
+};
 
 const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -292,67 +343,75 @@ const AdminDashboard: React.FC = () => {
                 <table className="table table-sm w-full">
                   <thead>
                     <tr className="text-xs uppercase text-base-content/70">
-                      <th className="w-48">Tid</th>
-                      <th className="w-60">Service</th>
-                      <th className="w-72">Medarbetare</th>
-                      <th className="text-right w-52">Åtgärder</th>
+                      <th className="w-44">Tid</th>
+                      <th className="w-48">Kund</th>
+                      <th className="w-52">Service</th>
+                      <th className="w-56">Medarbetare</th>
+                      <th className="w-24">Status</th>
+                      <th className="text-right w-32">Åtgärder</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedBookings.map((b) => (
-                      <tr
-                        key={b.id}
-                        className="cursor-pointer hover:bg-base-200/40"
-                        onClick={() => setDetailBooking(b)}
-                      >
-                        <td className="whitespace-nowrap">{formatTime(b.startTime)}</td>
-                        <td className="text-xs max-w-[240px] truncate">
-                          {serviceName(b.serviceId)}
-                        </td>
-                        <td>
-                          <select
-                            className="select select-bordered select-sm w-full max-w-xs"
-                            value={b.employeeId || ""}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => handleAssign(b.id, e.target.value)}
-                          >
-                            <option value="">Inte tilldelad</option>
-                            {employees.map((emp) => (
-                              <option key={emp.id} value={emp.id}>
-                                {emp.firstName || ""} {emp.lastName || ""} ({emp.email})
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="text-right">
-                          <div className="flex items-center gap-2 justify-end">
-                            <span
-                              className={`badge whitespace-nowrap px-2 min-w-[100px] justify-center ${
-                                b.employeeId ? "badge-primary badge-outline" : "badge-warning badge-outline"
-                              }`}
+                    {sortedBookings.map((b) => {
+                      const status = getStatusBadge(b);
+                      return (
+                        <tr
+                          key={b.id}
+                          className="cursor-pointer hover:bg-base-200/40"
+                          onClick={() => setDetailBooking(b)}
+                        >
+                          <td className="whitespace-nowrap">{formatTime(b.startTime)}</td>
+                          <td className="text-sm">
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-base-content/50" />
+                              <span className="truncate max-w-[140px]">{customerName(b)}</span>
+                            </div>
+                          </td>
+                          <td className="text-xs max-w-[200px] truncate">
+                            {serviceName(b.serviceId)}
+                          </td>
+                          <td>
+                            <select
+                              className="select select-bordered select-sm w-full max-w-[200px]"
+                              value={b.employeeId || ""}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => handleAssign(b.id, e.target.value)}
                             >
-                              {b.employeeId ? "Tilldelad" : "Ej tilldelad"}
+                              <option value="">Inte tilldelad</option>
+                              {employees.map((emp) => (
+                                <option key={emp.id} value={emp.id}>
+                                  {emp.firstName || ""} {emp.lastName || ""} ({emp.email})
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <span className={`badge badge-outline whitespace-nowrap ${status.className}`}>
+                              {status.text}
                             </span>
-                            {isEmployee &&
-                              b.employeeId === user?.id &&
-                              b.conversationId && (
-                                <button
-                                  className="btn btn-primary btn-xs gap-1"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedBooking(b);
-                                  }}
-                                >
-                                  <MessageCircle className="h-4 w-4" /> Chat
-                                </button>
+                          </td>
+                          <td className="text-right">
+                            <div className="flex items-center gap-2 justify-end">
+                              {isEmployee &&
+                                b.employeeId === user?.id &&
+                                b.conversationId && (
+                                  <ChatButtonWithBadge
+                                    booking={b}
+                                    userId={user?.id || ""}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedBooking(b);
+                                    }}
+                                  />
+                                )}
+                              {assigning === b.id && (
+                                <span className="loading loading-spinner loading-xs" />
                               )}
-                            {assigning === b.id && (
-                              <span className="loading loading-spinner loading-xs" />
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -368,29 +427,36 @@ const AdminDashboard: React.FC = () => {
                 <p className="text-sm text-base-content/60">Inga tilldelade bokningar.</p>
               ) : (
                 <ul className="divide-y divide-base-300">
-                  {sortedAssigned.map((b) => (
-                    <li key={b.id} className="py-3 flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{formatTime(b.startTime)}</p>
-                        <p className="text-xs text-base-content/60">
-                          {serviceName(b.serviceId)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="badge badge-outline">
-                          {b.conversationId ? "Chat aktiv" : "Ingen chat"}
-                        </span>
-                        {b.conversationId && (
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => setSelectedBooking(b)}
-                          >
-                            <MessageCircle className="h-4 w-4" /> Chat
-                          </button>
-                        )}
-                      </div>
-                    </li>
-                  ))}
+                  {sortedAssigned.map((b) => {
+                    const status = getStatusBadge(b);
+                    return (
+                      <li key={b.id} className="py-3 flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{formatTime(b.startTime)}</p>
+                          <p className="text-xs text-base-content/60">
+                            {serviceName(b.serviceId)}
+                          </p>
+                          <p className="text-xs text-base-content/50 flex items-center gap-1 mt-1">
+                            <User className="h-3 w-3" />
+                            {customerName(b)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`badge badge-outline ${status.className}`}>
+                            {status.text}
+                          </span>
+                          {b.conversationId && (
+                            <ChatButtonWithBadge
+                              booking={b}
+                              userId={user?.id || ""}
+                              onClick={() => setSelectedBooking(b)}
+                              size="sm"
+                            />
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
@@ -429,12 +495,33 @@ const AdminDashboard: React.FC = () => {
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex gap-2">
+                  <span className="font-medium">Kund:</span>
+                  <span className="flex items-center gap-1">
+                    <User className="h-4 w-4 text-base-content/50" />
+                    {customerName(detailBooking)}
+                    {detailBooking.user?.email && (
+                      <span className="text-base-content/50">({detailBooking.user.email})</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex gap-2">
                   <span className="font-medium">Service:</span>
                   <span>{serviceName(detailBooking.serviceId)}</span>
                 </div>
                 <div className="flex gap-2">
                   <span className="font-medium">Tid:</span>
                   <span>{formatTime(detailBooking.startTime)}</span>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <span className="font-medium">Status:</span>
+                  {(() => {
+                    const status = getStatusBadge(detailBooking);
+                    return (
+                      <span className={`badge badge-outline ${status.className}`}>
+                        {status.text}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="flex gap-2 items-center">
                   <span className="font-medium">Chat:</span>
@@ -462,12 +549,12 @@ const AdminDashboard: React.FC = () => {
                 detailBooking.employeeId === user?.id &&
                 detailBooking.conversationId && (
                   <div className="mt-3">
-                    <button
-                      className="btn btn-primary btn-sm"
+                    <ChatButtonWithBadge
+                      booking={detailBooking}
+                      userId={user?.id || ""}
                       onClick={() => setSelectedBooking(detailBooking)}
-                    >
-                      <MessageCircle className="h-4 w-4" /> Öppna chat
-                    </button>
+                      size="sm"
+                    />
                   </div>
                 )}
             </div>
