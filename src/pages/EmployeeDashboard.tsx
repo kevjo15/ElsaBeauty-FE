@@ -70,6 +70,14 @@ const ChatButtonWithBadge: React.FC<{
   );
 };
 
+// Confirmation dialog state type
+type AssignConfirmState = {
+  bookingId: string;
+  employeeId: string;
+  employeeName: string;
+  serviceName: string;
+} | null;
+
 const EmployeeDashboard: React.FC = () => {
   const { user } = useAuth();
   const role = user?.role?.toLowerCase() ?? "";
@@ -85,6 +93,7 @@ const EmployeeDashboard: React.FC = () => {
   const [weekOffset, setWeekOffset] = useState(0); // 0 = this week, +/- to navigate
   const [viewMode, setViewMode] = useState<"today" | "week" | "month">("week");
   const [detailBooking, setDetailBooking] = useState<BookingResponse | null>(null);
+  const [assignConfirm, setAssignConfirm] = useState<AssignConfirmState>(null);
   const navigate = useNavigate();
 
   const loadData = async () => {
@@ -124,8 +133,21 @@ const EmployeeDashboard: React.FC = () => {
     }
   }, [isEmployee, weekOffset, viewMode]);
 
-  const handleAssign = async (bookingId: string, employeeId: string) => {
+  // Opens confirmation dialog before assigning
+  const requestAssign = (bookingId: string, employeeId: string) => {
     if (!employeeId) return;
+    const emp = employees.find((e) => e.id === employeeId);
+    const booking = bookings.find((b) => b.id === bookingId);
+    const empName = emp ? `${emp.firstName || ""} ${emp.lastName || ""}`.trim() || emp.email : "Okänd";
+    const srvName = booking ? serviceName(booking.serviceId) : "Bokning";
+    setAssignConfirm({ bookingId, employeeId, employeeName: empName, serviceName: srvName });
+  };
+
+  // Actually performs the assignment after confirmation
+  const handleAssign = async () => {
+    if (!assignConfirm) return;
+    const { bookingId, employeeId } = assignConfirm;
+    setAssignConfirm(null);
     setAssigning(bookingId);
     const res = await assignEmployee(bookingId, employeeId);
     setAssigning(null);
@@ -420,7 +442,7 @@ const EmployeeDashboard: React.FC = () => {
                             <select
                               className="select select-bordered select-sm"
                               value={b.employeeId || ""}
-                              onChange={(e) => handleAssign(b.id, e.target.value)}
+                              onChange={(e) => requestAssign(b.id, e.target.value)}
                             >
                               <option value="">Inte tilldelad</option>
                               {employees.map((emp) => (
@@ -440,6 +462,34 @@ const EmployeeDashboard: React.FC = () => {
             </div>
           )}
         </section>
+
+        {/* Confirmation dialog for employee assignment */}
+        {assignConfirm && (
+          <dialog className="modal modal-open">
+            <div className="modal-box">
+              <h3 className="font-bold text-lg">Bekräfta tilldelning</h3>
+              <p className="py-4">
+                Vill du tilldela <span className="font-semibold">{assignConfirm.employeeName}</span> till{" "}
+                <span className="font-semibold">{assignConfirm.serviceName}</span>?
+              </p>
+              <div className="modal-action">
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setAssignConfirm(null)}
+                >
+                  Avbryt
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleAssign}
+                >
+                  Bekräfta
+                </button>
+              </div>
+            </div>
+            <div className="modal-backdrop bg-black/30" onClick={() => setAssignConfirm(null)} />
+          </dialog>
+        )}
 
         {detailBooking && (
           <section className="card bg-base-100 shadow-sm border border-base-300 w-full">
