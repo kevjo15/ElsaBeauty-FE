@@ -65,6 +65,14 @@ const ChatButtonWithBadge: React.FC<{
   );
 };
 
+// Confirmation dialog state type
+type AssignConfirmState = {
+  bookingId: string;
+  employeeId: string;
+  employeeName: string;
+  serviceName: string;
+} | null;
+
 const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const role = user?.role?.toLowerCase() ?? "";
@@ -81,6 +89,9 @@ const AdminDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "unassigned" | "chat">("all");
   const [sortSoonest, setSortSoonest] = useState<boolean>(true);
+  const [assignConfirm, setAssignConfirm] = useState<AssignConfirmState>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const loadData = async () => {
     try {
@@ -109,8 +120,21 @@ const AdminDashboard: React.FC = () => {
     }
   }, [isAdmin]);
 
-  const handleAssign = async (bookingId: string, employeeId: string) => {
+  // Opens confirmation dialog before assigning
+  const requestAssign = (bookingId: string, employeeId: string) => {
     if (!employeeId) return;
+    const emp = employees.find((e) => e.id === employeeId);
+    const booking = bookings.find((b) => b.id === bookingId);
+    const empName = emp ? `${emp.firstName || ""} ${emp.lastName || ""}`.trim() || emp.email : "Okänd";
+    const srvName = booking ? serviceName(booking.serviceId) : "Bokning";
+    setAssignConfirm({ bookingId, employeeId, employeeName: empName, serviceName: srvName });
+  };
+
+  // Actually performs the assignment after confirmation
+  const handleAssign = async () => {
+    if (!assignConfirm) return;
+    const { bookingId, employeeId } = assignConfirm;
+    setAssignConfirm(null);
     setAssigning(bookingId);
     const res = await assignEmployee(bookingId, employeeId);
     setAssigning(null);
@@ -148,6 +172,18 @@ const AdminDashboard: React.FC = () => {
     });
     return sorted;
   }, [filteredBookings, sortSoonest]);
+
+  // Pagination
+  const totalPages = Math.ceil(sortedBookings.length / pageSize);
+  const paginatedBookings = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedBookings.slice(start, start + pageSize);
+  }, [sortedBookings, currentPage, pageSize]);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
 
   const sortedAssigned = useMemo(
     () =>
@@ -339,7 +375,71 @@ const AdminDashboard: React.FC = () => {
                   {sortedBookings.length} st
                 </span>
               </div>
-              <div className="overflow-x-auto">
+
+              {/* Mobile: Card layout */}
+              <div className="md:hidden space-y-3">
+                {paginatedBookings.map((b) => {
+                  const status = getStatusBadge(b);
+                  return (
+                    <div
+                      key={b.id}
+                      className="card bg-base-200/50 border border-base-300 cursor-pointer hover:bg-base-200"
+                      onClick={() => setDetailBooking(b)}
+                    >
+                      <div className="card-body p-4 gap-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm">{formatTime(b.startTime)}</p>
+                            <p className="text-xs text-base-content/60 truncate mt-0.5">
+                              {serviceName(b.serviceId)}
+                            </p>
+                          </div>
+                          <span className={`badge badge-outline badge-sm ${status.className}`}>
+                            {status.text}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <User className="h-4 w-4 text-base-content/50 shrink-0" />
+                          <span className="truncate">{customerName(b)}</span>
+                        </div>
+                        <select
+                          className="select select-bordered select-sm w-full"
+                          value={b.employeeId || ""}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => requestAssign(b.id, e.target.value)}
+                        >
+                          <option value="">Inte tilldelad</option>
+                          {employees.map((emp) => (
+                            <option key={emp.id} value={emp.id}>
+                              {emp.firstName || ""} {emp.lastName || ""} ({emp.email})
+                            </option>
+                          ))}
+                        </select>
+                        <div className="flex items-center gap-2">
+                          {isEmployee &&
+                            b.employeeId === user?.id &&
+                            b.conversationId && (
+                              <ChatButtonWithBadge
+                                booking={b}
+                                userId={user?.id || ""}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedBooking(b);
+                                }}
+                              />
+                            )}
+                          {assigning === b.id && (
+                            <span className="loading loading-spinner loading-xs" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop: Table layout */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="table table-sm w-full">
                   <thead>
                     <tr className="text-xs uppercase text-base-content/70">
@@ -352,7 +452,7 @@ const AdminDashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedBookings.map((b) => {
+                    {paginatedBookings.map((b) => {
                       const status = getStatusBadge(b);
                       return (
                         <tr
@@ -375,7 +475,7 @@ const AdminDashboard: React.FC = () => {
                               className="select select-bordered select-sm w-full max-w-[200px]"
                               value={b.employeeId || ""}
                               onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => handleAssign(b.id, e.target.value)}
+                              onChange={(e) => requestAssign(b.id, e.target.value)}
                             >
                               <option value="">Inte tilldelad</option>
                               {employees.map((emp) => (
@@ -415,6 +515,48 @@ const AdminDashboard: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination controls */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t border-base-300">
+                  <span className="text-sm text-base-content/60">
+                    Visar {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, sortedBookings.length)} av {sortedBookings.length}
+                  </span>
+                  <div className="join">
+                    <button
+                      className="join-item btn btn-sm"
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                    >
+                      «
+                    </button>
+                    <button
+                      className="join-item btn btn-sm"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      ‹
+                    </button>
+                    <span className="join-item btn btn-sm btn-disabled">
+                      {currentPage} / {totalPages}
+                    </span>
+                    <button
+                      className="join-item btn btn-sm"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      ›
+                    </button>
+                    <button
+                      className="join-item btn btn-sm"
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                    >
+                      »
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -484,6 +626,34 @@ const AdminDashboard: React.FC = () => {
             </section>
           )}
 
+        {/* Confirmation dialog for employee assignment */}
+        {assignConfirm && (
+          <dialog className="modal modal-open">
+            <div className="modal-box">
+              <h3 className="font-bold text-lg">Bekräfta tilldelning</h3>
+              <p className="py-4">
+                Vill du tilldela <span className="font-semibold">{assignConfirm.employeeName}</span> till{" "}
+                <span className="font-semibold">{assignConfirm.serviceName}</span>?
+              </p>
+              <div className="modal-action">
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setAssignConfirm(null)}
+                >
+                  Avbryt
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleAssign}
+                >
+                  Bekräfta
+                </button>
+              </div>
+            </div>
+            <div className="modal-backdrop bg-black/30" onClick={() => setAssignConfirm(null)} />
+          </dialog>
+        )}
+
         {detailBooking && (
           <section className="card bg-base-100 shadow-sm border border-base-300 rounded-xl">
             <div className="card-body">
@@ -534,7 +704,7 @@ const AdminDashboard: React.FC = () => {
                   <select
                     className="select select-bordered select-sm"
                     value={detailBooking.employeeId || ""}
-                    onChange={(e) => handleAssign(detailBooking.id, e.target.value)}
+                    onChange={(e) => requestAssign(detailBooking.id, e.target.value)}
                   >
                     <option value="">Inte tilldelad</option>
                     {employees.map((emp) => (

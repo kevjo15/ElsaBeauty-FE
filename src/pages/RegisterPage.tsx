@@ -82,6 +82,7 @@ export default function RegisterPreview() {
                     id="name"
                     placeholder="John Doe"
                     className="input input-bordered w-full"
+                    disabled={form.formState.isSubmitting}
                     {...form.register("name")}
                   />
                   {form.formState.errors.name && (
@@ -102,6 +103,7 @@ export default function RegisterPreview() {
                     type="email"
                     autoComplete="email"
                     className="input input-bordered w-full"
+                    disabled={form.formState.isSubmitting}
                     {...form.register("email")}
                   />
                   {form.formState.errors.email && (
@@ -122,6 +124,7 @@ export default function RegisterPreview() {
                     type="tel"
                     autoComplete="tel"
                     className="input input-bordered w-full"
+                    disabled={form.formState.isSubmitting}
                     {...form.register("phone")}
                   />
                   {form.formState.errors.phone && (
@@ -143,6 +146,7 @@ export default function RegisterPreview() {
                     type="password"
                     autoComplete="new-password"
                     className="input input-bordered w-full"
+                    disabled={form.formState.isSubmitting}
                     {...form.register("password")}
                   />
                   {form.formState.errors.password && (
@@ -163,6 +167,7 @@ export default function RegisterPreview() {
                     type="password"
                     autoComplete="new-password"
                     className="input input-bordered w-full"
+                    disabled={form.formState.isSubmitting}
                     {...form.register("confirmPassword")}
                   />
                   {form.formState.errors.confirmPassword && (
@@ -172,8 +177,19 @@ export default function RegisterPreview() {
                   )}
                 </div>
 
-                <button type="submit" className="btn btn-primary w-full">
-                  Register
+                <button
+                  type="submit"
+                  className="btn btn-primary w-full"
+                  disabled={form.formState.isSubmitting}
+                >
+                  {form.formState.isSubmitting ? (
+                    <>
+                      <span className="loading loading-spinner loading-sm" />
+                      Registrerar...
+                    </>
+                  ) : (
+                    "Register"
+                  )}
                 </button>
               </div>
             </form>
