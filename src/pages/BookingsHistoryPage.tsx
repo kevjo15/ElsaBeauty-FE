@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/components/layout/main-layout";
 import {
-  CalendarClock,
+  Calendar,
   Trash2,
   RefreshCw,
   Clock,
   CheckCircle2,
   XCircle,
+  MessageCircle,
+  CalendarDays,
+  History,
 } from "lucide-react";
 import {
   cancelBooking,
@@ -22,38 +25,19 @@ import {
   isPast as isPastDate,
 } from "date-fns";
 import { sv } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
 
 type Tab = "upcoming" | "history";
 
-const statusBadge = (status?: string) => {
-  if (!status) return null;
-  const st = status.toLowerCase();
+const getStatusInfo = (status?: string, isPast?: boolean) => {
+  const st = (status || "").toLowerCase();
   if (st.includes("cancel")) {
-    return (
-      <span className="badge badge-outline border-error/40 text-error">
-        <XCircle className="h-3.5 w-3.5 mr-1" />
-        Avbokad
-      </span>
-    );
+    return { text: "Avbokad", className: "badge-error", icon: XCircle };
   }
-  if (
-    st.includes("completed") ||
-    st.includes("done") ||
-    st.includes("finished")
-  ) {
-    return (
-      <span className="badge badge-outline border-success/40 text-success">
-        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-        Klar
-      </span>
-    );
+  if (st.includes("completed") || st.includes("done") || st.includes("finished") || isPast) {
+    return { text: "Avslutad", className: "badge-success", icon: CheckCircle2 };
   }
-  return (
-    <span className="badge badge-outline border-primary/40 text-primary">
-      <Clock className="h-3.5 w-3.5 mr-1" />
-      Bokad
-    </span>
-  );
+  return { text: "Bokad", className: "badge-neutral", icon: Clock };
 };
 
 const BookingsHistoryPage: React.FC = () => {
@@ -62,6 +46,7 @@ const BookingsHistoryPage: React.FC = () => {
   const [err, setErr] = useState<string | null>(null);
   const [active, setActive] = useState<Tab>("upcoming");
   const [canceling, setCanceling] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const { services } = useServicesWithImages();
 
@@ -127,6 +112,90 @@ const BookingsHistoryPage: React.FC = () => {
     }
   };
 
+  const BookingCard = ({ booking, canCancel }: { booking: BookingResponse; canCancel?: boolean }) => {
+    const start = new Date(booking.startTime);
+    const end = new Date(booking.endTime);
+    const pastBooking = isPastDate(end);
+    const daysUntil = differenceInDays(start, now);
+    const isSoon = !pastBooking && daysUntil >= 0 && daysUntil <= 7;
+    const durationLabel = formatDistanceStrict(start, end, { locale: sv });
+    const statusInfo = getStatusInfo(booking.status, pastBooking);
+    const StatusIcon = statusInfo.icon;
+
+    return (
+      <div className={`card bg-base-100 shadow-sm border border-base-200 hover:shadow-md transition-shadow ${pastBooking ? "opacity-75" : ""}`}>
+        <div className="card-body p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            {/* Left: Main info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`badge ${statusInfo.className} gap-1`}>
+                  <StatusIcon className="h-3 w-3" />
+                  {statusInfo.text}
+                </span>
+                {isSoon && (
+                  <span className="badge badge-secondary badge-outline">
+                    {daysUntil === 0 ? "Idag" : `Om ${daysUntil} dag${daysUntil === 1 ? "" : "ar"}`}
+                  </span>
+                )}
+              </div>
+
+              <h3 className="font-semibold text-lg text-base-content truncate">
+                {serviceName(booking.serviceId)}
+              </h3>
+
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-base-content/70">
+                <span className="inline-flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4" />
+                  {format(start, "d MMM yyyy", { locale: sv })}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="h-4 w-4" />
+                  {format(start, "HH:mm")} - {format(end, "HH:mm")}
+                </span>
+                <span className="text-base-content/50">({durationLabel})</span>
+              </div>
+            </div>
+
+            {/* Right: Actions */}
+            <div className="flex flex-row sm:flex-col gap-2 sm:items-end">
+              {booking.conversationId ? (
+                <button
+                  className="btn btn-primary btn-sm flex-1 sm:flex-none"
+                  onClick={() => navigate(`/chat/${booking.id}`, { state: { booking } })}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Chat
+                </button>
+              ) : (
+                <div className="tooltip tooltip-left flex-1 sm:flex-none" data-tip="Chat aktiveras när behandlare tilldelats">
+                  <button className="btn btn-ghost btn-sm w-full opacity-50" disabled>
+                    <MessageCircle className="h-4 w-4" />
+                    Chat
+                  </button>
+                </div>
+              )}
+              {canCancel && (
+                <button
+                  className="btn btn-ghost btn-sm text-error hover:bg-error/10 flex-1 sm:flex-none"
+                  onClick={() => handleCancel(booking.id)}
+                  disabled={canceling === booking.id}
+                >
+                  {canceling === booking.id ? (
+                    <span className="loading loading-spinner loading-xs" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  Avboka
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const List = ({
     items,
     emptyText,
@@ -138,207 +207,96 @@ const BookingsHistoryPage: React.FC = () => {
   }) => {
     if (!items.length) {
       return (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-base-300 bg-base-200/40 py-16 text-center">
-          <CalendarClock className="h-8 w-8 text-base-content/50" />
-          <p className="max-w-sm text-sm text-base-content/70">{emptyText}</p>
+        <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+          <Calendar className="h-12 w-12 text-base-content/30" />
+          <p className="text-base-content/60 max-w-xs">{emptyText}</p>
         </div>
       );
     }
 
     return (
-      <ol className="space-y-6">
-        {items.map((b) => {
-          const start = new Date(b.startTime);
-          const end = new Date(b.endTime);
-          const pastBooking = isPastDate(end);
-          const daysUntil = differenceInDays(start, now);
-          const isSoon = !pastBooking && daysUntil >= 0 && daysUntil <= 7;
-          const durationLabel = formatDistanceStrict(start, end, {
-            locale: sv,
-          });
-  const cardBackground = pastBooking
-    ? "bg-base-100/90 border-base-300/50"
-    : "bg-base-100/95 border-primary/20 shadow-[0_18px_40px_-22px_rgba(236,72,153,0.45)] dark:shadow-[0_18px_40px_-22px_rgba(236,72,153,0.28)]";
-  const accentBadge = pastBooking
-    ? "border-base-300 bg-base-100 text-base-content/60"
-    : "border-primary/20 bg-primary/90 text-primary-content";
-
-          return (
-            <li key={b.id}>
-              <article
-                className={`relative overflow-hidden rounded-2xl border backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl ${cardBackground}`}
-              >
-                <span
-                  className={`absolute left-5 top-5 flex h-10 w-10 items-center justify-center rounded-full border-2 transition-colors ${accentBadge}`}
-                >
-                  <CalendarClock className="h-4 w-4" />
-                </span>
-
-                <div className="flex flex-col gap-6 p-6 pl-20 md:flex-row md:items-center md:justify-between">
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-base-content/60">
-                        {format(start, "EEEE d MMMM yyyy", { locale: sv })}
-                      </p>
-                      <h3 className="text-xl font-semibold text-base-content">
-                        {serviceName(b.serviceId)}
-                      </h3>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-base-content/70">
-                      <span className="inline-flex items-center gap-2 rounded-full border border-base-300/60 bg-base-100/80 px-3 py-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        {format(start, "HH:mm", { locale: sv })} -{" "}
-                        {format(end, "HH:mm", { locale: sv })}
-                      </span>
-                      <span className="inline-flex items-center gap-2 rounded-full border border-base-300/60 bg-base-100/70 px-3 py-1">
-                        Varaktighet: {durationLabel}
-                      </span>
-                      {isSoon && (
-                        <span className="inline-flex items-center gap-2 rounded-full bg-warning/15 px-3 py-1 text-warning">
-                          <Clock className="h-3.5 w-3.5" />
-                          {daysUntil === 0
-                            ? "Idag"
-                            : `Om ${daysUntil} dag${daysUntil === 1 ? "" : "ar"}`}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-stretch gap-3 md:items-end">
-                    <div>{statusBadge(b.status)}</div>
-                    {canCancel && (
-                      <button
-                        className="btn btn-outline btn-error btn-sm w-full md:btn-md md:w-auto"
-                        onClick={() => handleCancel(b.id)}
-                        disabled={canceling === b.id}
-                        title="Avboka"
-                      >
-                        {canceling === b.id ? (
-                          <>
-                            <span className="loading loading-spinner loading-xs" />
-                            Avbokar...
-                          </>
-                        ) : (
-                          <>
-                            <Trash2 className="h-4 w-4" />
-                            Avboka
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </article>
-            </li>
-          );
-        })}
-      </ol>
+      <div className="space-y-3">
+        {items.map((b) => (
+          <BookingCard key={b.id} booking={b} canCancel={canCancel} />
+        ))}
+      </div>
     );
   };
 
   return (
     <MainLayout>
-      <section className="mx-auto max-w-5xl space-y-8 px-4 pb-16">
-        <div className="rounded-3xl border border-base-300/40 bg-base-100/75 p-6 shadow-lg backdrop-blur dark:bg-base-200/70">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full bg-primary/12 p-3 text-primary ring-2 ring-primary/15">
-              <CalendarClock className="h-5 w-5" />
-            </span>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight text-base-content">
-                Bokningar
-              </h1>
-              <p className="text-sm text-base-content/70">
-                Se kommande tider, historik och hantera avbokningar.
-              </p>
-            </div>
-            <button
-              className="btn btn-ghost btn-sm ml-auto"
-              onClick={refresh}
-              disabled={loading}
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-              Uppdatera
-            </button>
+      <section className="mx-auto max-w-3xl px-4 py-6 pb-16">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-base-content">Mina bokningar</h1>
+            <p className="text-sm text-base-content/60 mt-0.5">
+              {upcoming.length} kommande · {history.length} avslutade
+            </p>
           </div>
-
-          {err && (
-            <div className="alert alert-error mt-6">
-              <span>{err}</span>
-            </div>
-          )}
-
-          <div className="mt-6 grid gap-3 text-sm sm:grid-cols-3">
-            <div className="rounded-2xl border border-base-300/40 bg-base-100/90 p-4 shadow-sm">
-              <p className="text-xs uppercase tracking-wide text-base-content/60">
-                Totalt
-              </p>
-              <p className="mt-2 text-2xl font-semibold text-base-content">
-                {upcoming.length + history.length}
-              </p>
-              <p className="text-xs text-base-content/60">bokningar</p>
-            </div>
-            <div className="rounded-2xl border border-primary/20 bg-primary/6 p-4 shadow-sm shadow-[0_12px_30px_-24px_rgba(236,72,153,0.6)]">
-              <p className="text-xs uppercase tracking-wide text-primary/75">
-                Kommande
-              </p>
-              <p className="mt-2 text-2xl font-semibold text-primary">
-                {upcoming.length}
-              </p>
-              <p className="text-xs text-primary/70">bokningar kvar</p>
-            </div>
-            <div className="rounded-2xl border border-base-300/40 bg-base-100/90 p-4 shadow-sm">
-              <p className="text-xs uppercase tracking-wide text-base-content/60">
-                Historik
-              </p>
-              <p className="mt-2 text-2xl font-semibold text-base-content">
-                {history.length}
-              </p>
-              <p className="text-xs text-base-content/60">
-                avslutade behandlingar
-              </p>
-            </div>
-          </div>
-
-          <div role="tablist" className="tabs tabs-lifted mt-6">
-            <button
-              role="tab"
-              className={`tab ${active === "upcoming" ? "tab-active" : ""}`}
-              onClick={() => setActive("upcoming")}
-            >
-              Kommande ({upcoming.length})
-            </button>
-            <button
-              role="tab"
-              className={`tab ${active === "history" ? "tab-active" : ""}`}
-              onClick={() => setActive("history")}
-            >
-              Historik ({history.length})
-            </button>
-          </div>
-
-          <div className="rounded-b-2xl border-x border-b border-base-300/50 bg-base-100/92 p-6 dark:bg-base-200/70">
-            {loading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="skeleton h-24 w-full rounded-2xl" />
-                ))}
-              </div>
-            ) : active === "upcoming" ? (
-              <List
-                items={upcoming}
-                emptyText="Du har inga kommande bokningar ännu. Utforska våra behandlingar och boka din nästa tid."
-                canCancel
-              />
-            ) : (
-              <List
-                items={history}
-                emptyText="Ingen historik ännu. När du avslutat en behandling hamnar den här."
-              />
-            )}
-          </div>
+          <button
+            className="btn btn-ghost btn-sm btn-circle"
+            onClick={refresh}
+            disabled={loading}
+            title="Uppdatera"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </button>
         </div>
+
+        {err && (
+          <div className="alert alert-error mb-6">
+            <span>{err}</span>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex gap-1 p-1 bg-base-200 rounded-lg mb-6">
+          <button
+            className={`flex-1 btn btn-sm ${active === "upcoming" ? "btn-primary" : "btn-ghost"}`}
+            onClick={() => setActive("upcoming")}
+          >
+            <CalendarDays className="h-4 w-4" />
+            Kommande
+            {upcoming.length > 0 && (
+              <span className={`badge badge-sm ${active === "upcoming" ? "badge-primary-content bg-primary-content/20" : "badge-neutral"}`}>
+                {upcoming.length}
+              </span>
+            )}
+          </button>
+          <button
+            className={`flex-1 btn btn-sm ${active === "history" ? "btn-primary" : "btn-ghost"}`}
+            onClick={() => setActive("history")}
+          >
+            <History className="h-4 w-4" />
+            Historik
+            {history.length > 0 && (
+              <span className={`badge badge-sm ${active === "history" ? "badge-primary-content bg-primary-content/20" : "badge-neutral"}`}>
+                {history.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Content */}
+        {loading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="skeleton h-28 w-full rounded-xl" />
+            ))}
+          </div>
+        ) : active === "upcoming" ? (
+          <List
+            items={upcoming}
+            emptyText="Du har inga kommande bokningar. Boka en behandling för att komma igång!"
+            canCancel
+          />
+        ) : (
+          <List
+            items={history}
+            emptyText="Ingen historik ännu. Dina avslutade behandlingar visas här."
+          />
+        )}
       </section>
     </MainLayout>
   );

@@ -5,6 +5,7 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 // Import Pages
 import LoginPage from "@/pages/LoginPage";
@@ -15,25 +16,34 @@ import { AuthProvider } from "@/services/api/authContext";
 
 // Import the BookingPage
 import BookingPage from "@/pages/BookingPage";
-import TestPage from "@/pages/TestPage";
 import BookingConfirmationPage from "@/pages/BookingConfirmationPage";
 import ServicesPage from "@/pages/ServicesPage";
 import ServiceDetailsPage from "@/pages/ServiceDetailsPage";
 import BookingsHistoryPage from "@/pages/BookingsHistoryPage";
+import EmployeeDashboard from "@/pages/EmployeeDashboard";
+import AdminDashboard from "@/pages/AdminDashboard";
+import ChatPage from "@/pages/ChatPage";
+import ProfilePage from "@/pages/ProfilePage";
+import CustomerDashboard from "@/pages/CustomerDashboard";
 
 function App() {
   return (
     <Router>
       <AuthProvider>
         <ThemeProvider>
+          <Toaster position="top-right" richColors />
           <Routes>
+            {/* Publika routes */}
+            <Route path="/" element={<HomePage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/login" element={<LoginPage />} />
+
+            {/* Skyddade routes */}
             <Route
-              path="/home"
+              path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <HomePage />
+                  <CustomerDashboard />
                 </ProtectedRoute>
               }
             />
@@ -46,15 +56,7 @@ function App() {
               }
             />
             <Route
-              path="/test"
-              element={
-                <ProtectedRoute>
-                  <TestPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/booking-confirmation"
+              path="/booking-confirmation/:bookingId?"
               element={
                 <ProtectedRoute>
                   <BookingConfirmationPage />
@@ -85,7 +87,40 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route
+              path="/employee"
+              element={
+                <ProtectedRoute>
+                  <EmployeeDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chat/:bookingId"
+              element={
+                <ProtectedRoute>
+                  <ChatPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            {/* Redirect /home till /dashboard för bakåtkompatibilitet */}
+            <Route path="/home" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </ThemeProvider>
       </AuthProvider>
