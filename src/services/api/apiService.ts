@@ -4,7 +4,7 @@ import {
   REVOKE_REFRESH_TOKEN_URL,
   REFRESH_TOKEN_URL,
 } from "@/services/api/apiUrl";
-import { decodeAccessToken } from "./authService";
+import { decodeAccessToken, getCookie } from "./authService";
 
 /**
  * Utility helper to set a cookie optionally scoped by lifetime in days.
@@ -31,6 +31,16 @@ export const api: AxiosInstance = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+});
+
+// Attach Authorization header if accessToken cookie exists
+api.interceptors.request.use((config) => {
+  if (!config.headers) config.headers = {};
+  const token = getCookie("accessToken");
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 /**

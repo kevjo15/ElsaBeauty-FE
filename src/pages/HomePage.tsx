@@ -1,15 +1,18 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import MainLayout from "@/components/layout/main-layout";
-import { Calendar, BadgeCheck } from "lucide-react";
+import PublicLayout from "@/components/layout/public-layout";
+import { Calendar, BadgeCheck, UserPlus } from "lucide-react";
 import AboutElsa from "@/components/landing/AboutElsa";
 import WhyChoose from "@/components/landing/WhyChoose";
 import CallToAction from "@/components/landing/CallToAction";
 import Footer from "@/components/layout/Footer";
+import { useAuth } from "@/services/api/authContext";
 
 const HomePage: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+
   return (
-    <MainLayout>
+    <PublicLayout>
       {/* Hero Section */}
       <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-base-100 via-base-200 to-base-100 ring-1 ring-base-300/60 shadow-sm mb-16">
         <div className="grid md:grid-cols-2 gap-8 items-center p-8 md:p-12">
@@ -28,13 +31,27 @@ const HomePage: React.FC = () => {
               flera års erfarenhet.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/bookings" className="btn btn-primary">
-                <Calendar className="h-4 w-4" />
-                Boka konsultation
-              </Link>
-              <a href="#about" className="btn btn-secondary">
-                Läs mer om mig
-              </a>
+              {isAuthenticated ? (
+                <>
+                  <Link to="/bookings" className="btn btn-primary">
+                    <Calendar className="h-4 w-4" />
+                    Boka konsultation
+                  </Link>
+                  <Link to="/dashboard" className="btn btn-secondary">
+                    Till Dashboard
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/register" className="btn btn-primary">
+                    <UserPlus className="h-4 w-4" />
+                    Kom igång
+                  </Link>
+                  <Link to="/login" className="btn btn-secondary">
+                    Logga in
+                  </Link>
+                </>
+              )}
             </div>
           </div>
           <div className="relative">
@@ -56,7 +73,7 @@ const HomePage: React.FC = () => {
 
       {/* Footer */}
       <Footer />
-    </MainLayout>
+    </PublicLayout>
   );
 };
 

@@ -17,7 +17,8 @@ import DateSelector from "@/components/booking/DateSelector";
 import BookingConfirmationModal from "@/components/booking/BookingConfirmationModal";
 import { useServicesWithImages } from "@/hooks/useServicesWithImages";
 import { useTimeSlots } from "@/hooks/useTimeSlots";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Clock, X } from "lucide-react";
+import { isPast, startOfDay } from "date-fns";
 
 interface ApiError {
   response?: {
@@ -26,6 +27,63 @@ interface ApiError {
     };
   };
 }
+
+const BOOKING_STORAGE_KEY = "elsabeauty_booking_draft";
+const DRAFT_MAX_AGE_HOURS = 24;
+
+interface BookingDraft {
+  serviceId?: string;
+  serviceName?: string;
+  date?: string; // ISO string
+  step: number;
+  savedAt: number; // timestamp
+}
+
+const saveBookingDraft = (draft: BookingDraft) => {
+  try {
+    sessionStorage.setItem(BOOKING_STORAGE_KEY, JSON.stringify(draft));
+  } catch {
+    // sessionStorage might be unavailable
+  }
+};
+
+const loadBookingDraft = (): BookingDraft | null => {
+  try {
+    const saved = sessionStorage.getItem(BOOKING_STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved) as BookingDraft;
+    }
+  } catch {
+    // sessionStorage might be unavailable
+  }
+  return null;
+};
+
+const clearBookingDraft = () => {
+  try {
+    sessionStorage.removeItem(BOOKING_STORAGE_KEY);
+  } catch {
+    // sessionStorage might be unavailable
+  }
+};
+
+const isDraftValid = (draft: BookingDraft): boolean => {
+  // Check if draft is too old (> 24 hours)
+  const ageInHours = (Date.now() - draft.savedAt) / (1000 * 60 * 60);
+  if (ageInHours > DRAFT_MAX_AGE_HOURS) {
+    return false;
+  }
+
+  // Check if selected date is in the past
+  if (draft.date) {
+    const draftDate = startOfDay(new Date(draft.date));
+    if (isPast(draftDate) && draftDate < startOfDay(new Date())) {
+      return false;
+    }
+  }
+
+  return true;
+};
 
 const stepsConfig = [
   { id: 1, label: "Välj behandling" },
@@ -48,30 +106,107 @@ const BookingPage: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [step, setStep] = useState(1);
-  const [isModalOpen, setIsModalOpen] = useState(false); // Lägg till state för modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
+  const [pendingDraft, setPendingDraft] = useState<BookingDraft | null>(null);
 
-  // If coming from a Service details page, preselect service and jump to step 2 (choose date)
+  // Load saved draft from sessionStorage on mount
   useEffect(() => {
-    const state = location.state as {
+    if (draftLoaded || services.length === 0) return;
+
+    // Check for preselected service from navigation state first
+    const navState = location.state as {
       preselectedServiceId?: string;
       startAtStep?: number;
     } | null;
-    if (state?.preselectedServiceId && services.length > 0) {
-      const pre =
-        services.find((s) => s.id === state.preselectedServiceId) || null;
+
+    if (navState?.preselectedServiceId) {
+      const pre = services.find((s) => s.id === navState.preselectedServiceId) || null;
       if (pre) {
         setSelectedService(pre);
         setSelectedSlot(null);
         setStep(
-          state.startAtStep && state.startAtStep >= 1 && state.startAtStep <= 3
-            ? state.startAtStep
+          navState.startAtStep && navState.startAtStep >= 1 && navState.startAtStep <= 3
+            ? navState.startAtStep
             : 2
         );
+        clearBookingDraft(); // Clear old draft when coming from service page
+        setDraftLoaded(true);
+        return;
       }
     }
-  }, [location.state, services]);
+
+    // Otherwise, check for saved draft in sessionStorage
+    const draft = loadBookingDraft();
+    if (draft && draft.serviceId) {
+      // Validate the draft
+      if (!isDraftValid(draft)) {
+        // Draft is invalid (too old or date in past) - clear silently
+        clearBookingDraft();
+        setDraftLoaded(true);
+        return;
+      }
+
+      // Draft is valid - show banner to let user choose
+      const savedService = services.find((s) => s.id === draft.serviceId);
+      if (savedService) {
+        setPendingDraft({
+          ...draft,
+          serviceName: savedService.name,
+        });
+        setShowDraftBanner(true);
+      }
+    }
+    setDraftLoaded(true);
+  }, [services, location.state, draftLoaded]);
+
+  // Handle user choosing to continue with draft
+  const handleContinueDraft = () => {
+    if (!pendingDraft) return;
+
+    const savedService = services.find((s) => s.id === pendingDraft.serviceId) || null;
+    if (savedService) {
+      setSelectedService(savedService);
+    }
+    if (pendingDraft.date) {
+      setSelectedDate(new Date(pendingDraft.date));
+    }
+    if (pendingDraft.step) {
+      setStep(pendingDraft.step);
+    }
+    setShowDraftBanner(false);
+    setPendingDraft(null);
+  };
+
+  // Handle user choosing to start fresh
+  const handleStartFresh = () => {
+    clearBookingDraft();
+    setShowDraftBanner(false);
+    setPendingDraft(null);
+    setSelectedService(null);
+    setSelectedDate(undefined);
+    setSelectedSlot(null);
+    setStep(1);
+  };
+
+  // Save draft to sessionStorage when state changes
+  useEffect(() => {
+    if (!draftLoaded || showDraftBanner) return;
+
+    // Only save if there's something to save
+    if (selectedService) {
+      const draft: BookingDraft = {
+        serviceId: selectedService.id,
+        serviceName: selectedService.name,
+        date: selectedDate?.toISOString(),
+        step,
+        savedAt: Date.now(),
+      };
+      saveBookingDraft(draft);
+    }
+  }, [selectedService, selectedDate, step, draftLoaded, showDraftBanner]);
 
   const handleServiceChange = (serviceId: string) => {
     const service = services.find((s) => s.id === serviceId) || null;
@@ -122,7 +257,6 @@ const BookingPage: React.FC = () => {
 
     setBookingLoading(true);
     setBookingError(null);
-    setSuccess(null);
 
     try {
       const bookingData: BookingRequest = {
@@ -132,14 +266,17 @@ const BookingPage: React.FC = () => {
         endTime: selectedSlot.endTime,
       };
 
-      await createBooking(bookingData);
-      setSuccess("Bokning skapad framgångsrikt!");
+      const bookingResponse = await createBooking(bookingData);
+      const bookingId = bookingResponse?.id;
+
+      // Clear draft from sessionStorage after successful booking
+      clearBookingDraft();
 
       setSelectedService(null);
       setSelectedDate(undefined);
       setSelectedSlot(null);
 
-      navigate("/booking-confirmation", {
+      navigate(`/booking-confirmation/${bookingId || ""}`, {
         state: {
           bookingDetails: {
             service: selectedService,
@@ -171,6 +308,43 @@ const BookingPage: React.FC = () => {
   return (
     <MainLayout>
       <div className="container mx-auto max-w-4xl py-6">
+        {/* Banner för påbörjad bokning */}
+        {showDraftBanner && pendingDraft && (
+          <div className="mb-6 alert bg-primary/10 border border-primary/20">
+            <Clock className="h-5 w-5 text-primary" />
+            <div className="flex-1">
+              <p className="font-medium">Du har en påbörjad bokning</p>
+              <p className="text-sm text-base-content/70">
+                {pendingDraft.serviceName}
+                {pendingDraft.date && (
+                  <> • {format(new Date(pendingDraft.date), "d MMMM", { locale: sv })}</>
+                )}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={handleStartFresh}
+              >
+                Börja om
+              </button>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleContinueDraft}
+              >
+                Fortsätt
+              </button>
+            </div>
+            <button
+              className="btn btn-ghost btn-sm btn-circle"
+              onClick={handleStartFresh}
+              aria-label="Stäng"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         {/* Stegindikator */}
         <div className="mb-12 mr-14 px-4 sm:px-6">
           <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 sm:gap-6">
@@ -244,7 +418,16 @@ const BookingPage: React.FC = () => {
                 onServiceChange={handleServiceChange}
                 title="Välj din behandling"
               />
-              <div className="mt-4 flex justify-end">
+              <div className="mt-4 flex justify-between">
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    clearBookingDraft();
+                    navigate("/dashboard");
+                  }}
+                >
+                  Avbryt
+                </button>
                 <button
                   className="btn btn-primary"
                   onClick={() => setStep(2)}
@@ -334,13 +517,6 @@ const BookingPage: React.FC = () => {
           <div role="alert" className="alert alert-error mt-6">
             <h3 className="font-bold">Fel</h3>
             <p>{servicesError || timeSlotsError || bookingError}</p>
-          </div>
-        )}
-
-        {success && (
-          <div role="alert" className="alert alert-success mt-6">
-            <h3 className="font-bold">Framgång!</h3>
-            <p>{success}</p>
           </div>
         )}
 
