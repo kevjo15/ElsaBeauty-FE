@@ -1,23 +1,24 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import axios from "axios";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { jwtDecode } from "jwt-decode";
-import {
-  loginUser,
-  logoutUser,
-  scheduleTokenRefresh,
-  getCookie,
-} from "./authService";
+import { loginUser, logoutUser, tryRestoreAuth } from "./authService";
+import { api } from "./apiService";
+import { getAccessToken, clearAccessToken } from "./tokenStore";
 import { ME_URL, USER_NAME_URL } from "./apiUrl";
 
-// Gränssnitt för JWT:s payload (behålls för referens)
+/**
+ * Interface for JWT payload.
+ */
 export interface JwtPayload {
   sub: string;
   email: string;
   role?: string;
-  exp: number; // utgångstid i sekunder
+  exp: number;
+  [key: string]: unknown;
 }
 
-// Interface för användardata
+/**
+ * Interface for user data.
+ */
 export interface User {
   id: string;
   email: string;
@@ -26,36 +27,39 @@ export interface User {
   lastName?: string;
 }
 
-// Autentiseringsstate. Notera att vi fortfarande har fältet token, men med httpOnly-cookies kan vi inte läsa ut token från klienten.
+/**
+ * Authentication state.
+ */
 interface AuthState {
   isAuthenticated: boolean;
-  token: string | null;
   user: User | null;
 }
 
-// Kontextens värde
+/**
+ * Auth context props.
+ */
 interface AuthContextProps extends AuthState {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  setAuthState: React.Dispatch<React.SetStateAction<AuthState>>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: false,
-    token: null,
     user: null,
   });
 
   const [isLoading, setIsLoading] = useState(true);
 
-  // Funktion som anropar "me"-endpointen för att hämta aktuell användardata
-  const fetchUser = async () => {
+  /**
+   * Fetches user data from the API and updates auth state.
+   */
+  const fetchUser = useCallback(async (): Promise<boolean> => {
     try {
-      const accessToken = getCookie("accessToken");
+      const accessToken = getAccessToken();
 
       // Decode role and sub (userId) from token as fallback
       let decodedRole: string | undefined;
@@ -63,127 +67,130 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (accessToken) {
         try {
-          const decoded = jwtDecode<JwtPayload & Record<string, unknown>>(
-            accessToken
-          );
+          const decoded = jwtDecode<JwtPayload>(accessToken);
           decodedRole =
             (decoded?.role as string | undefined) ||
-            (decoded?.Role as string | undefined) ||
             (decoded?.[
               "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
             ] as string | undefined);
-
           decodedSub = decoded?.sub;
         } catch (err) {
           console.warn("Could not decode access token", err);
         }
       }
 
-      const response = await axios.get(ME_URL, {
-        withCredentials: true,
-        headers: accessToken
-          ? { Authorization: `Bearer ${accessToken}` }
-          : undefined,
-      });
+      // Fetch user info from /me endpoint
+      const response = await api.get(ME_URL);
 
       const data = response.data || {};
       const userId =
         data.userId || data.UserId || data.id || data.Id || decodedSub;
       const email = data.email || data.Email;
-      const role = data.role || data.Role;
+      const role = data.role || data.Role || decodedRole;
 
-      // Hämta användarens för- och efternamn
-      let firstName = undefined;
-      let lastName = undefined;
+      // Try to fetch user's name
+      let firstName: string | undefined;
+      let lastName: string | undefined;
 
       try {
-        console.log("Fetching user name from:", USER_NAME_URL);
-        console.log("Access token:", getCookie("accessToken"));
-
-        const nameResponse = await axios.get(USER_NAME_URL, {
-          withCredentials: true,
-          headers: accessToken
-            ? {
-                Authorization: `Bearer ${accessToken}`,
-                "Content-Type": "application/json",
-              }
-            : { "Content-Type": "application/json" },
-        });
-
-        console.log("Name response data:", nameResponse.data);
-
+        const nameResponse = await api.get(USER_NAME_URL);
         if (nameResponse.data) {
           firstName = nameResponse.data.firstName;
           lastName = nameResponse.data.lastName;
-          console.log("Extracted name:", firstName, lastName);
         }
-      } catch (nameError) {
-        console.error("Failed to fetch user name:", nameError);
+      } catch {
+        // Name endpoint is optional, ignore errors
       }
 
       setAuthState({
         isAuthenticated: true,
-        token: null, // httpOnly-cookie, så vi kan inte läsa token från klienten
         user: {
           id: userId,
           email,
-          role: role ?? decodedRole,
+          role,
           firstName,
           lastName,
         },
       });
-    } catch (error) {
-      console.error("Fel vid hämtning av användardata:", error);
-      setAuthState({ isAuthenticated: false, token: null, user: null });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  // Vid sidladdning anropas fetchUser för att återskapa authState
-  useEffect(() => {
-    (async () => {
-      await fetchUser();
-      // Om användaren är inloggad finns en cookie, då schemalägger vi token refresh
-      scheduleTokenRefresh();
-    })();
+      return true;
+    } catch (error) {
+      console.error("Failed to fetch user data:", error);
+      setAuthState({ isAuthenticated: false, user: null });
+      return false;
+    }
   }, []);
 
-  // Vid inloggning: anropa loginUser och därefter fetchUser för att hämta användardata
-  const login = async (email: string, password: string) => {
+  /**
+   * Initialize auth state on app load.
+   * Attempts to restore auth from HttpOnly refresh token cookie.
+   */
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        // Try to get a new access token using the refresh token cookie
+        const restored = await tryRestoreAuth();
+
+        if (restored) {
+          // If we got a token, fetch user data
+          await fetchUser();
+        } else {
+          setAuthState({ isAuthenticated: false, user: null });
+        }
+      } catch {
+        setAuthState({ isAuthenticated: false, user: null });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initAuth();
+  }, [fetchUser]);
+
+  /**
+   * Login handler.
+   */
+  const login = useCallback(async (email: string, password: string) => {
     try {
       await loginUser(email, password);
       await fetchUser();
     } catch (error) {
-      console.error("Inloggning misslyckades:", error);
+      console.error("Login failed:", error);
       throw error;
     }
-  };
+  }, [fetchUser]);
 
-  // Vid utloggning: anropa logoutUser och återställ authState
-  const logout = async () => {
+  /**
+   * Logout handler.
+   */
+  const logout = useCallback(async () => {
     try {
       await logoutUser();
-      setAuthState({ isAuthenticated: false, token: null, user: null });
     } catch (error) {
-      console.error("Utloggning misslyckades:", error);
-      throw error;
+      console.error("Logout request failed:", error);
+      // Continue with local cleanup even if server request fails
+    } finally {
+      clearAccessToken();
+      setAuthState({ isAuthenticated: false, user: null });
     }
-  };
+  }, []);
 
   return (
     <AuthContext.Provider
-      value={{ ...authState, isLoading, login, logout, setAuthState }}
+      value={{ ...authState, isLoading, login, logout }}
     >
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = (): AuthContextProps => {
+/**
+ * Hook to access auth context.
+ */
+export function useAuth(): AuthContextProps {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-};
+}
