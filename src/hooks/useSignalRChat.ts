@@ -13,7 +13,7 @@ import {
   toChatMessage,
 } from "@/services/api/chatAPI";
 import type { BookingChatMeta, ChatMessage } from "@/services/api/types";
-import { getCookie } from "@/services/api/authService";
+import { getAccessToken } from "@/services/api/tokenStore";
 import {
   requestNotificationPermission,
   showNotification,
@@ -186,7 +186,7 @@ export function useSignalRChat({
 
       setStatus("connecting");
       setError(undefined);
-      const accessToken = getCookie("accessToken");
+      const accessToken = getAccessToken();
 
       const connection = new HubConnectionBuilder()
         .withUrl(CHAT_HUB_URL, {

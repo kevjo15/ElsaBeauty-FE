@@ -4,7 +4,6 @@ import {
 } from "./apiUrl";
 import { api } from "./apiService";
 import type { ChatMessage } from "./types";
-import { getCookie } from "./authService";
 
 type RawChatMessage = Partial<{
   id: string;
@@ -48,12 +47,8 @@ export async function fetchConversationMessages(
   conversationId: string
 ): Promise<ChatMessage[]> {
   const url = getConversationMessagesUrl(conversationId);
-  const token = getCookie("accessToken");
-
-  const res = await api.get<ChatMessage[]>(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
-
+  // api instance already has auth interceptor that adds Authorization header
+  const res = await api.get<ChatMessage[]>(url);
   return (res.data ?? []).map(toChatMessage);
 }
 
@@ -65,19 +60,12 @@ export async function sendMessageHttp(
   payload: Pick<ChatMessage, "content"> & { senderId: string }
 ): Promise<void> {
   const url = sendConversationMessageUrl(conversationId);
-  const token = getCookie("accessToken");
-
-  await api.post(
-    url,
-    {
-      ConversationId: conversationId,
-      SenderId: payload.senderId,
-      Content: payload.content,
-    },
-    {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    }
-  );
+  // api instance already has auth interceptor that adds Authorization header
+  await api.post(url, {
+    ConversationId: conversationId,
+    SenderId: payload.senderId,
+    Content: payload.content,
+  });
 }
 
 export { toChatMessage };

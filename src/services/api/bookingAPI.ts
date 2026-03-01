@@ -3,13 +3,12 @@ import {
   CREATE_BOOKING_URL,
   GET_MY_BOOKINGS_URL,
   CANCEL_BOOKING_URL,
-  REFRESH_TOKEN_URL,
   GET_MY_ASSIGNED_BOOKINGS_URL,
   ASSIGN_EMPLOYEE_URL,
   GET_BOOKING_BY_ID_URL,
   API_BASE_URL,
 } from "./apiUrl";
-import { api, setCookie } from "./apiService";
+import { api } from "./apiService";
 import {
   TimeSlot,
   DaySlots,
@@ -17,16 +16,16 @@ import {
   BookingResponse,
 } from "./types";
 
-export const getAvailableTimeSlots = async (
+/**
+ * Gets available time slots for a service on a specific date.
+ */
+export async function getAvailableTimeSlots(
   serviceId: string,
   date: string
-): Promise<TimeSlot[]> => {
+): Promise<TimeSlot[]> {
   try {
     const response = await api.get<DaySlots[]>(GET_AVAILABLE_SLOTS_URL, {
-      params: {
-        serviceId,
-        date,
-      },
+      params: { serviceId, date },
     });
 
     const availableSlots: TimeSlot[] = [];
@@ -43,240 +42,118 @@ export const getAvailableTimeSlots = async (
     console.error("Failed to fetch available time slots:", error);
     return [];
   }
-};
+}
 
-export const createBooking = async (
+/**
+ * Creates a new booking.
+ */
+export async function createBooking(
   bookingData: BookingRequest
-): Promise<BookingResponse | null> => {
+): Promise<BookingResponse | null> {
   try {
-    const accessToken = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("accessToken="))
-      ?.split("=")[1];
-
-    const response = await fetch(CREATE_BOOKING_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken ?? ""}`,
-      },
-      body: JSON.stringify(bookingData),
-      credentials: "include",
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Booking error response:", errorText);
-      throw new Error(
-        `Failed to create booking: ${response.status} ${response.statusText}`
-      );
-    }
-
-    return (await response.json()) as BookingResponse;
+    const response = await api.post<BookingResponse>(CREATE_BOOKING_URL, bookingData);
+    return response.data;
   } catch (error) {
     console.error("Failed to create booking:", error);
     throw error;
   }
-};
+}
 
-export const getMyBookings = async (): Promise<BookingResponse[]> => {
+/**
+ * Gets bookings for the current user.
+ */
+export async function getMyBookings(): Promise<BookingResponse[]> {
   try {
-    const getAccessToken = () =>
-      document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("accessToken="))
-        ?.split("=")[1];
-
-    let accessToken = getAccessToken();
-
-    let res = await fetch(GET_MY_BOOKINGS_URL, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken ?? ""}`,
-      },
-      credentials: "include",
-    });
-
-    if (res.status === 401) {
-      const refreshRes = await fetch(REFRESH_TOKEN_URL, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (refreshRes.ok) {
-        const data = (await refreshRes.json()) as { AccessToken?: string };
-        if (data?.AccessToken) {
-          setCookie("accessToken", data.AccessToken, 1);
-          accessToken = data.AccessToken;
-        }
-        res = await fetch(GET_MY_BOOKINGS_URL, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${accessToken ?? ""}`,
-          },
-          credentials: "include",
-        });
-      }
-    }
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("getMyBookings error:", res.status, text);
-      return [];
-    }
-
-    const data = (await res.json()) as BookingResponse[];
-    return Array.isArray(data) ? data : [];
+    const response = await api.get<BookingResponse[]>(GET_MY_BOOKINGS_URL);
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error) {
     console.error("Failed to fetch my bookings:", error);
     return [];
   }
-};
+}
 
-export const cancelBooking = async (bookingId: string): Promise<boolean> => {
+/**
+ * Cancels a booking by ID.
+ */
+export async function cancelBooking(bookingId: string): Promise<boolean> {
   try {
-    const getAccessToken = () =>
-      document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("accessToken="))
-        ?.split("=")[1];
-
-    let accessToken = getAccessToken();
-
-    let res = await fetch(`${CANCEL_BOOKING_URL}/${bookingId}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${accessToken ?? ""}`,
-      },
-      credentials: "include",
-    });
-
-    if (res.status === 401) {
-      const refreshRes = await fetch(REFRESH_TOKEN_URL, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (refreshRes.ok) {
-        const data = (await refreshRes.json()) as { AccessToken?: string };
-        if (data?.AccessToken) {
-          setCookie("accessToken", data.AccessToken, 1);
-          accessToken = data.AccessToken;
-        }
-        res = await fetch(`${CANCEL_BOOKING_URL}/${bookingId}`, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${accessToken ?? ""}`,
-          },
-          credentials: "include",
-        });
-      }
-    }
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("cancelBooking error:", res.status, text);
-      return false;
-    }
-
+    await api.delete(`${CANCEL_BOOKING_URL}/${bookingId}`);
     return true;
   } catch (error) {
     console.error("Failed to cancel booking:", error);
     return false;
   }
-};
+}
 
-export const getMyAssignedBookings = async (
+/**
+ * Gets bookings assigned to the current employee.
+ */
+export async function getMyAssignedBookings(
   from?: Date,
   to?: Date
-): Promise<BookingResponse[]> => {
+): Promise<BookingResponse[]> {
   try {
-    const getAccessToken = () =>
-      document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("accessToken="))
-        ?.split("=")[1];
-    const token = getAccessToken();
     const params: Record<string, string> = {};
     if (from) params.from = from.toISOString();
     if (to) params.to = to.toISOString();
-    const res = await api.get<BookingResponse[]>(GET_MY_ASSIGNED_BOOKINGS_URL, {
+
+    const response = await api.get<BookingResponse[]>(GET_MY_ASSIGNED_BOOKINGS_URL, {
       params,
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
-    return res.data ?? [];
+    return response.data ?? [];
   } catch (error) {
     console.error("Failed to fetch assigned bookings:", error);
     return [];
   }
-};
+}
 
-export const assignEmployee = async (
+/**
+ * Assigns an employee to a booking.
+ */
+export async function assignEmployee(
   bookingId: string,
   employeeId: string
-): Promise<BookingResponse | null> => {
+): Promise<BookingResponse | null> {
   try {
-    const getAccessToken = () =>
-      document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("accessToken="))
-        ?.split("=")[1];
-    const token = getAccessToken();
-
-    const res = await api.put<BookingResponse>(
+    const response = await api.put<BookingResponse>(
       `${ASSIGN_EMPLOYEE_URL}/${bookingId}`,
-      { employeeId },
-      {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      }
+      { employeeId }
     );
-    return res.data;
+    return response.data;
   } catch (error) {
     console.error("Failed to assign employee:", error);
     return null;
   }
-};
+}
 
-export const getAllBookings = async (): Promise<BookingResponse[]> => {
+/**
+ * Gets all bookings (admin only).
+ */
+export async function getAllBookings(): Promise<BookingResponse[]> {
   try {
-    const getAccessToken = () =>
-      document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("accessToken="))
-        ?.split("=")[1];
-    const token = getAccessToken();
-
-    const res = await api.get<BookingResponse[]>(
-      `${API_BASE_URL}/Booking/GetAllBookings`,
-      {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      }
+    const response = await api.get<BookingResponse[]>(
+      `${API_BASE_URL}/Booking/GetAllBookings`
     );
-    return res.data ?? [];
+    return response.data ?? [];
   } catch (error) {
     console.error("Failed to fetch all bookings:", error);
     return [];
   }
-};
+}
 
-export const getBookingById = async (
+/**
+ * Gets a booking by ID.
+ */
+export async function getBookingById(
   bookingId: string
-): Promise<BookingResponse | null> => {
+): Promise<BookingResponse | null> {
   try {
-    const getAccessToken = () =>
-      document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("accessToken="))
-        ?.split("=")[1];
-    const token = getAccessToken();
-
-    const res = await api.get<BookingResponse>(
-      `${GET_BOOKING_BY_ID_URL}/${bookingId}`,
-      {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      }
+    const response = await api.get<BookingResponse>(
+      `${GET_BOOKING_BY_ID_URL}/${bookingId}`
     );
-    return res.data ?? null;
+    return response.data ?? null;
   } catch (error) {
     console.error("Failed to fetch booking by id:", error);
     return null;
   }
-};
+}
