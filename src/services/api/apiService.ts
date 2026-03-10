@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from "axios";
-import { API_BASE_URL, REFRESH_TOKEN_URL, REVOKE_REFRESH_TOKEN_URL } from "@/services/api/apiUrl";
+import { REFRESH_TOKEN_URL, REVOKE_REFRESH_TOKEN_URL } from "@/services/api/apiUrl";
 import { getAccessToken, setAccessToken, clearAccessToken } from "./tokenStore";
 
 /**
@@ -64,7 +64,10 @@ api.interceptors.response.use(
     }
 
     // Don't try to refresh if the refresh endpoint itself failed
-    if (originalRequest.url?.includes("refreshAccessToken")) {
+    if (
+      originalRequest.url?.includes("refreshAccessToken") ||
+      originalRequest.url?.includes("revokeRefreshToken")
+    ) {
       clearAccessToken();
       return Promise.reject(error);
     }
