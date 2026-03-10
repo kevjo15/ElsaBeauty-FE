@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - codex/connect-frontend-to-backend-development-x23gfi
-      # Lägg ev till fler brancher här:
+      # Lägg ev. till fler brancher senare:
       # - Development
   workflow_dispatch:
 
@@ -24,15 +24,20 @@ jobs:
           node-version: "22"
           cache: "npm"
 
-      - name: Install deps
+      - name: Install dependencies
         run: npm ci
 
-      - name: Build (Vite -> dist)
+      - name: Build app (Vite -> dist)
         env:
-          # Sätt dessa som GitHub Actions Variables eller Secrets
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
           VITE_SIGNALR_BASE_URL: ${{ vars.VITE_SIGNALR_BASE_URL }}
         run: npm run build
+
+      - name: Verify dist exists
+        run: |
+          ls -la
+          ls -la dist
+          test -f dist/index.html
 
       - name: Upload dist artifact
         uses: actions/upload-artifact@v4
@@ -65,6 +70,6 @@ jobs:
       - name: Deploy dist to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: "bc-dev-fe-01"
-          slot-name: "Production"
+          app-name: bc-dev-fe-01
+          slot-name: Production
           package: dist
