@@ -6,7 +6,7 @@ name: Build and deploy Node.js app to Azure Web App - bc-dev-fe-01
 on:
   push:
     branches:
-      - codex/connect-frontend-to-backend-development
+      - Development
   workflow_dispatch:
 
 jobs:
@@ -21,7 +21,7 @@ jobs:
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
-          node-version: '22.x'
+          node-version: '20.x'
 
       - name: npm install, build, and test
         run: |
@@ -51,9 +51,9 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_DB9C50BAF8BF40FA8B5CB75AB7C7A1A9 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_A3F39CC1EEF1497499FB0586567E6F0F }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_520C1A6C88B7423892AE6CA74D54C404 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_9C1E79D0E8BA402381964787961F4CE9 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CE42F7EDEF5E4DC5A6A12841156DA169 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_D38A4C233F79439285A49DBD2E65F7BD }}
 
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
