@@ -4,24 +4,14 @@ on:
   push:
     branches:
       - codex/connect-frontend-to-backend-development-x23gfi
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
-    branches:
-      - codex/connect-frontend-to-backend-development-x23gfi
 
 jobs:
   build_and_deploy_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
     name: Build and Deploy Job
 
-    permissions:
-      contents: read
-      id-token: write
-
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Build and Deploy
         uses: Azure/static-web-apps-deploy@v1
@@ -31,15 +21,3 @@ jobs:
           app_location: "/"
           api_location: ""
           output_location: "dist"
-          production_branch: "codex/connect-frontend-to-backend-development-x23gfi"
-
-  close_pull_request_job:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close Pull Request Job
-
-    steps:
-      - name: Close Pull Request
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          action: "close"
