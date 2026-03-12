@@ -1,75 +1,54 @@
-name: Build and deploy Vite app to Azure Web App - bc-dev-fe-01
+name: Build and deploy Vite app to Azure
 
 on:
   push:
     branches:
-      - codex/connect-frontend-to-backend-development-x23gfi
-      # Lägg ev. till fler brancher senare:
-      # - Development
+      - codex-connect-frontend-to-backend-development-x23gfi
   workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: bc-dev-fe-01
+  NODE_VERSION: '22.x'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
 
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup Node 22
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
-          cache: "npm"
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
-      - name: Build app (Vite -> dist)
-        env:
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
-          VITE_SIGNALR_BASE_URL: ${{ vars.VITE_SIGNALR_BASE_URL }}
+      - name: Build project
         run: npm run build
 
-      - name: Verify dist exists
-        run: |
-          ls -la
-          ls -la dist
-          test -f dist/index.html
-
-      - name: Upload dist artifact
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: web-dist
+          name: build
           path: dist
-          if-no-files-found: error
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    permissions:
-      id-token: write
-      contents: read
 
     steps:
-      - name: Download dist artifact
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: web-dist
+          name: build
           path: dist
 
-      - name: Azure login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_9C1E79D0E8BA402381964787961F4CE9 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CE42F7EDEF5E4DC5A6A12841156DA169 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_D38A4C233F79439285A49DBD2E65F7BD }}
-
-      - name: Deploy dist to Azure Web App
+      - name: Deploy to Azure
         uses: azure/webapps-deploy@v3
         with:
-          app-name: bc-dev-fe-01
-          slot-name: Production
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
           package: dist
