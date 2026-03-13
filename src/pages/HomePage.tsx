@@ -10,6 +10,7 @@ import { useAuth } from "@/services/api/authContext";
 
 const HomePage: React.FC = () => {
   const { isAuthenticated } = useAuth();
+  const STORAGE_BASE_URL = import.meta.env.VITE_STORAGE_BASE_URL;
 
   return (
     <PublicLayout>
@@ -57,7 +58,7 @@ const HomePage: React.FC = () => {
           <div className="relative">
             <div className="rounded-2xl overflow-hidden shadow-xl ring-1 ring-base-300/60 bg-base-100">
               <img
-                src="http://127.0.0.1:10000/devstoreaccount1/homepage/Elsa2.png?se=2025-11-05T05%3A07%3A40Z&sig=nyKqAp5oJQZMmzX%2Bkv0vHajjWsED88M4LHAAj9TQt4M%3D&sp=rl&sr=c&sv=2018-03-28"
+                src={`${STORAGE_BASE_URL}/homepage/Elsa2.png`}
                 alt="Elsa"
                 className="w-full h-[360px] md:h-[500px] object-cover object-[50%_8%] md:object-[50%_0%] lg:object-[50%_10%]"
               />
