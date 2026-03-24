@@ -50,7 +50,6 @@ const ServiceSelector: React.FC<ServiceSelectorProps> = ({
                     src={service.imageUrl}
                     alt={service.name}
                     className="h-full w-full object-cover"
-                    crossOrigin="anonymous"
                   />
                 </figure>
                 <div className="card-body p-4">
