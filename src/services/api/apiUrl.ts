@@ -26,7 +26,7 @@ function resolveSignalRBaseUrl(): string {
 export const SIGNALR_BASE_URL = resolveSignalRBaseUrl();
 
 // Specific endpoints
-export const REGISTER_URL = `${API_BASE_URL}/register`;
+export const REGISTER_URL = `${API_BASE_URL}/User/register`;
 export const LOGIN_URL = `${API_BASE_URL}/User/login`;
 export const REVOKE_REFRESH_TOKEN_URL = `${API_BASE_URL}/User/revokeRefreshToken`;
 export const REFRESH_TOKEN_URL = `${API_BASE_URL}/User/refreshAccessToken`;

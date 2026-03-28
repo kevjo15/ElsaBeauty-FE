@@ -1,63 +1,73 @@
 "use client";
 
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import ModeToggle from "@/components/mode-toggle";
+import { registerUser } from "@/services/api/authService";
 
-// Define validation schema using Zod
 const formSchema = z
   .object({
-    name: z
+    firstName: z
       .string()
-      .min(2, { message: "Name must be at least 2 characters long" }),
-    email: z.string().email({ message: "Invalid email address" }),
-    phone: z.string().min(10, { message: "Phone number must be valid" }),
+      .min(2, { message: "First name must be at least 2 characters." }),
+    lastName: z
+      .string()
+      .min(2, { message: "Last name must be at least 2 characters." }),
+    email: z.string().email({ message: "Invalid email address." }),
+    phoneNumber: z
+      .string()
+      .regex(/^\+?[0-9\s\-\(\)]{7,15}$/, { message: "Phone number is not valid." }),
     password: z
       .string()
-      .min(6, { message: "Password must be at least 6 characters long" })
-      .regex(/[a-zA-Z0-9]/, { message: "Password must be alphanumeric" }),
+      .min(8, { message: "Password must be at least 8 characters." })
+      .regex(/[A-Z]/, { message: "Password must contain at least one uppercase letter." })
+      .regex(/[a-z]/, { message: "Password must contain at least one lowercase letter." })
+      .regex(/[0-9]/, { message: "Password must contain at least one digit." })
+      .regex(/[^a-zA-Z0-9]/, { message: "Password must contain at least one special character." }),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     path: ["confirmPassword"],
-    message: "Passwords do not match",
+    message: "Passwords do not match.",
   });
 
-export default function RegisterPreview() {
-  const form = useForm<z.infer<typeof formSchema>>({
+type FormValues = z.infer<typeof formSchema>;
+
+export default function RegisterPage() {
+  const navigate = useNavigate();
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
+      firstName: "",
+      lastName: "",
       email: "",
-      phone: "",
+      phoneNumber: "",
       password: "",
       confirmPassword: "",
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: FormValues) {
+    setServerError(null);
     try {
-      // Assuming an async registration function
-      console.log(values);
-      toast(
-        <pre className="mt-2 w-[340px] rounded-md bg-base-300 p-4">
-          <code className="text-base-content">
-            {JSON.stringify(values, null, 2)}
-          </code>
-        </pre>
-      );
+      await registerUser(values);
+      navigate("/login");
     } catch (error) {
-      console.error("Form submission error", error);
-      toast.error("Failed to submit the form. Please try again.");
+      if (error instanceof Error) {
+        setServerError(error.message);
+      } else {
+        setServerError("Registration failed. Please try again.");
+      }
     }
   }
 
   return (
     <div className="flex flex-col items-center min-h-screen p-4">
-      {/* ModeToggle placerad högst upp i högra hörnet */}
       <div className="ml-auto w-full max-w-md">
         <div className="flex justify-end mb-4">
           <ModeToggle />
@@ -71,36 +81,56 @@ export default function RegisterPreview() {
             <p className="text-base-content">
               Create a new account by filling out the form below.
             </p>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid gap-4">
-                {/* Name Field */}
+                {/* First Name */}
                 <div>
-                  <label htmlFor="name" className="label">
-                    Full Name
+                  <label htmlFor="firstName" className="label">
+                    First Name
                   </label>
                   <input
-                    id="name"
-                    placeholder="John Doe"
+                    id="firstName"
+                    placeholder="John"
                     className="input input-bordered w-full"
                     disabled={form.formState.isSubmitting}
-                    {...form.register("name")}
+                    {...form.register("firstName")}
                   />
-                  {form.formState.errors.name && (
+                  {form.formState.errors.firstName && (
                     <p className="text-error text-sm mt-1">
-                      {form.formState.errors.name.message}
+                      {form.formState.errors.firstName.message}
                     </p>
                   )}
                 </div>
 
-                {/* Email Field */}
+                {/* Last Name */}
+                <div>
+                  <label htmlFor="lastName" className="label">
+                    Last Name
+                  </label>
+                  <input
+                    id="lastName"
+                    placeholder="Doe"
+                    className="input input-bordered w-full"
+                    disabled={form.formState.isSubmitting}
+                    {...form.register("lastName")}
+                  />
+                  {form.formState.errors.lastName && (
+                    <p className="text-error text-sm mt-1">
+                      {form.formState.errors.lastName.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Email */}
                 <div>
                   <label htmlFor="email" className="label">
                     Email
                   </label>
                   <input
                     id="email"
-                    placeholder="johndoe@mail.com"
                     type="email"
+                    placeholder="johndoe@mail.com"
                     autoComplete="email"
                     className="input input-bordered w-full"
                     disabled={form.formState.isSubmitting}
@@ -113,36 +143,34 @@ export default function RegisterPreview() {
                   )}
                 </div>
 
-                {/* Phone Field */}
+                {/* Phone */}
                 <div>
-                  <label htmlFor="phone" className="label">
+                  <label htmlFor="phoneNumber" className="label">
                     Phone Number
                   </label>
                   <input
-                    id="phone"
-                    placeholder="555-123-4567"
+                    id="phoneNumber"
                     type="tel"
+                    placeholder="+46 70 123 45 67"
                     autoComplete="tel"
                     className="input input-bordered w-full"
                     disabled={form.formState.isSubmitting}
-                    {...form.register("phone")}
+                    {...form.register("phoneNumber")}
                   />
-                  {form.formState.errors.phone && (
+                  {form.formState.errors.phoneNumber && (
                     <p className="text-error text-sm mt-1">
-                      {form.formState.errors.phone.message}
+                      {form.formState.errors.phoneNumber.message}
                     </p>
                   )}
-                  {/* TODO: Re-integrate react-phone-number-input or find a DaisyUI alternative */}
                 </div>
 
-                {/* Password Field */}
+                {/* Password */}
                 <div>
                   <label htmlFor="password" className="label">
                     Password
                   </label>
                   <input
                     id="password"
-                    placeholder="******"
                     type="password"
                     autoComplete="new-password"
                     className="input input-bordered w-full"
@@ -156,14 +184,13 @@ export default function RegisterPreview() {
                   )}
                 </div>
 
-                {/* Confirm Password Field */}
+                {/* Confirm Password */}
                 <div>
                   <label htmlFor="confirmPassword" className="label">
                     Confirm Password
                   </label>
                   <input
                     id="confirmPassword"
-                    placeholder="******"
                     type="password"
                     autoComplete="new-password"
                     className="input input-bordered w-full"
@@ -177,6 +204,11 @@ export default function RegisterPreview() {
                   )}
                 </div>
 
+                {/* Server error */}
+                {serverError && (
+                  <p className="text-error text-sm text-center">{serverError}</p>
+                )}
+
                 <button
                   type="submit"
                   className="btn btn-primary w-full"
@@ -185,7 +217,7 @@ export default function RegisterPreview() {
                   {form.formState.isSubmitting ? (
                     <>
                       <span className="loading loading-spinner loading-sm" />
-                      Registrerar...
+                      Registering...
                     </>
                   ) : (
                     "Register"
@@ -193,6 +225,7 @@ export default function RegisterPreview() {
                 </button>
               </div>
             </form>
+
             <div className="mt-4 text-center text-sm">
               Already have an account?{" "}
               <Link to="/login" className="underline">
