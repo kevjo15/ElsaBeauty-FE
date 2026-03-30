@@ -131,9 +131,7 @@ export async function assignEmployee(
  */
 export async function getAllBookings(): Promise<BookingResponse[]> {
   try {
-    const response = await api.get<BookingResponse[]>(
-      `${API_BASE_URL}/Booking/GetAllBookings`
-    );
+    const response = await api.get<BookingResponse[]>(`${API_BASE_URL}/bookings`);
     return response.data ?? [];
   } catch (error) {
     console.error("Failed to fetch all bookings:", error);
