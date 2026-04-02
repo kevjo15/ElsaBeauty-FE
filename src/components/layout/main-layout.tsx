@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/services/api/authContext";
 import ModeToggle from "@/components/mode-toggle";
 import Footer from "@/components/layout/Footer";
+import NotificationCenter from "@/components/NotificationCenter";
 import { Menu, Home, Scissors, Calendar, LogOut, Shield, Briefcase } from "lucide-react";
 
 interface MainLayoutProps {
@@ -130,10 +131,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </nav>
         </div>
 
-        {/* Right: Theme + Avatar */}
+        {/* Right: Theme + Notifications + Avatar */}
         <div className="navbar-end">
-          <div className="mr-2">
+          <div className="mr-1">
             <ModeToggle />
+          </div>
+          <div className="mr-1">
+            <NotificationCenter userId={user?.id} />
           </div>
           <div className="dropdown dropdown-end">
             <div

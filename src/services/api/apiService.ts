@@ -6,6 +6,7 @@ import { getAccessToken, setAccessToken, clearAccessToken } from "./tokenStore";
  * Flag to prevent multiple simultaneous refresh attempts.
  */
 let isRefreshing = false;
+let refreshRequestPromise: Promise<string | null> | null = null;
 
 /**
  * Queue of requests waiting for token refresh to complete.
@@ -16,6 +17,47 @@ let refreshSubscribers: Array<(token: string) => void> = [];
  * Queue of requests that should be rejected after refresh failure.
  */
 let failedQueue: Array<{ reject: (error: Error) => void }> = [];
+let authExpired = false;
+let authExpiredListeners: Array<() => void> = [];
+
+function notifyAuthExpired(): void {
+  authExpiredListeners.forEach((listener) => listener());
+}
+
+async function requestAccessTokenRefresh(): Promise<string | null> {
+  if (refreshRequestPromise) {
+    return refreshRequestPromise;
+  }
+
+  refreshRequestPromise = (async () => {
+    try {
+      const response = await axios.post<{ accessToken: string }>(
+        REFRESH_TOKEN_URL,
+        {},
+        {
+          withCredentials: true,
+        }
+      );
+
+      const newToken = response.data.accessToken;
+      if (!newToken) {
+        throw new Error("No access token received from refresh endpoint");
+      }
+
+      authExpired = false;
+      setAccessToken(newToken);
+      return newToken;
+    } catch {
+      authExpired = true;
+      clearAccessToken();
+      return null;
+    } finally {
+      refreshRequestPromise = null;
+    }
+  })();
+
+  return refreshRequestPromise;
+}
 
 /**
  * Shared Axios instance configured for the API.
@@ -58,6 +100,10 @@ api.interceptors.response.use(
       _retry?: boolean;
     };
 
+    if (authExpired) {
+      return Promise.reject(error);
+    }
+
     // Only handle 401 errors and avoid infinite loops
     if (error.response?.status !== 401 || originalRequest._retry) {
       return Promise.reject(error);
@@ -65,8 +111,8 @@ api.interceptors.response.use(
 
     // Don't try to refresh if the refresh endpoint itself failed
     if (
-      originalRequest.url?.includes("refreshAccessToken") ||
-      originalRequest.url?.includes("revokeRefreshToken")
+      originalRequest.url?.includes("/auth/refresh") ||
+      originalRequest.url?.includes("/auth/logout")
     ) {
       clearAccessToken();
       return Promise.reject(error);
@@ -90,24 +136,10 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      // Attempt to refresh the token
-      // The refresh token is automatically sent via HttpOnly cookie
-      const response = await axios.post<{ accessToken: string }>(
-        REFRESH_TOKEN_URL,
-        {},
-        {
-          withCredentials: true,
-        }
-      );
-
-      const newToken = response.data.accessToken;
-
+      const newToken = await requestAccessTokenRefresh();
       if (!newToken) {
-        throw new Error("No access token received from refresh endpoint");
+        throw new Error("Session expired. Please log in again.");
       }
-
-      // Store the new token in memory
-      setAccessToken(newToken);
 
       isRefreshing = false;
 
@@ -124,6 +156,8 @@ api.interceptors.response.use(
 
       // Clear the token from memory
       clearAccessToken();
+      authExpired = true;
+      notifyAuthExpired();
 
       // Reject all queued requests
       processFailedQueue(new Error("Session expired. Please log in again."));
@@ -170,23 +204,16 @@ export async function revokeRefreshToken(): Promise<void> {
  * Used on app initialization to restore auth state from HttpOnly cookie.
  */
 export async function refreshAccessToken(): Promise<string | null> {
-  try {
-    const response = await axios.post<{ accessToken: string }>(
-      REFRESH_TOKEN_URL,
-      {},
-      {
-        withCredentials: true,
-      }
-    );
+  return requestAccessTokenRefresh();
+}
 
-    const newToken = response.data.accessToken;
-    if (newToken) {
-      setAccessToken(newToken);
-      return newToken;
-    }
-    return null;
-  } catch {
-    clearAccessToken();
-    return null;
-  }
+export function subscribeToAuthExpired(listener: () => void): () => void {
+  authExpiredListeners.push(listener);
+  return () => {
+    authExpiredListeners = authExpiredListeners.filter((l) => l !== listener);
+  };
+}
+
+export function resetAuthExpiredState(): void {
+  authExpired = false;
 }

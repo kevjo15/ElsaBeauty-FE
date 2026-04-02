@@ -81,3 +81,23 @@ export interface Employee {
   lastName?: string;
   email: string;
 }
+
+export enum NotificationType {
+  BookingReminder = 0,
+  BookingConfirmation = 1,
+  BookingCancellation = 2,
+  BookingUpdated = 3,
+  MessageReceived = 4,
+}
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  createdAt: string;
+  isRead: boolean;
+  type: NotificationType;
+  bookingId?: string;
+  userId: string;
+  conversationId?: string;
+}
