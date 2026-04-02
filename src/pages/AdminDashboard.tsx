@@ -88,7 +88,7 @@ const AdminDashboard: React.FC = () => {
   const [assigning, setAssigning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "unassigned" | "chat">("all");
-  const [sortSoonest, setSortSoonest] = useState<boolean>(true);
+  const [sortSoonest, setSortSoonest] = useState<boolean>(false);
   const [assignConfirm, setAssignConfirm] = useState<AssignConfirmState>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;

@@ -4,6 +4,7 @@ import { useSignalRChat } from "@/hooks/useSignalRChat";
 import { useAuth } from "@/services/api/authContext";
 import type { BookingResponse, ChatMessage } from "@/services/api/types";
 import { getAllServices } from "@/services/api/serviceAPI";
+import { useChatState } from "@/contexts/ChatStateContext";
 import { ArrowLeft, Clock, Info, MessageCircle, Send, ShieldAlert, WifiOff } from "lucide-react";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
@@ -29,6 +30,9 @@ const displayOrFallback = (name: string | undefined, fallback: string) => {
   if (!name) return fallback;
   return looksLikeGuid(name) ? fallback : name;
 };
+const hasReadAt = (value?: string) => typeof value === "string" && value.trim().length > 0;
+const sameUserId = (left?: string, right?: string) =>
+  (left ?? "").trim().toLowerCase() === (right ?? "").trim().toLowerCase();
 
 interface BookingChatProps {
   booking: BookingWithChat;
@@ -98,11 +102,12 @@ const ChatMessageBubble: React.FC<ChatMessageBubbleProps & { showHeader?: boolea
 export const BookingChat: React.FC<BookingChatProps> = ({ booking }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  // Om user-id saknas (t.ex. patientens egna bokning), använd booking.userId som fallback
-  const currentUserId = user?.id ?? booking.userId ?? "";
+  const { markConversationRead } = useChatState();
+  const currentUserId = user?.id ?? "";
   const [draft, setDraft] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
   const [fetchedServiceName, setFetchedServiceName] = useState<string | null>(null);
+  const lastAutoReadSignatureRef = useRef("");
 
   // Hämta service-namn om det inte finns med i booking
   useEffect(() => {
@@ -193,10 +198,11 @@ export const BookingChat: React.FC<BookingChatProps> = ({ booking }) => {
       "Du"
     );
 
-  const { messages, sendMessage, markAsRead, startTyping, stopTyping, isOtherUserTyping, status, isChatOpen, isLoadingHistory, error } =
+  const { messages, sendMessage, markConversationAsRead, startTyping, stopTyping, isOtherUserTyping, status, isChatOpen, isLoadingHistory, error } =
     useSignalRChat({
       conversationId: booking.conversationId,
       currentUserId,
+      bookingId: booking.id,
       bookingMeta: {
         startTime: booking.startTime,
         endTime: booking.endTime,
@@ -221,53 +227,30 @@ export const BookingChat: React.FC<BookingChatProps> = ({ booking }) => {
     }
   }, [sortedMessages.length]);
 
-  // Mark messages as read when they become visible
+  // When chat finishes loading: mark conversation as read in shared state and on BE.
+  // Using chatState ensures badge clears immediately across all components.
+  // The HTTP call marks messages on BE and broadcasts MessageRead to the sender.
   useEffect(() => {
-    // Track which messages we've already marked as read to avoid duplicates
-    const markedAsRead = new Set<string>();
+    if (isLoadingHistory || !currentUserId) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const messageId = entry.target.getAttribute('data-message-id');
-            const senderId = entry.target.getAttribute('data-sender-id');
-            const isAlreadyRead = entry.target.getAttribute('data-read') === 'true';
+    const unreadSignature = sortedMessages
+      .filter((m) => !sameUserId(m.senderId, currentUserId) && !hasReadAt(m.readAt))
+      .map((m) => m.id ?? `${m.senderId}:${m.sentAt}:${m.content}`)
+      .join("|");
 
-            // Only mark as read if:
-            // - Has a valid message ID
-            // - Is not my message
-            // - Is not already read
-            // - Haven't already sent a mark-as-read for this message
-            if (
-              messageId &&
-              messageId !== 'undefined' &&
-              senderId &&
-              senderId !== currentUserId &&
-              !isAlreadyRead &&
-              !markedAsRead.has(messageId)
-            ) {
-              markedAsRead.add(messageId);
-              console.log('Marking message as read:', messageId);
-              void markAsRead(messageId);
-            }
-          }
-        });
-      },
-      {
-        root: listRef.current,
-        threshold: 0.5, // Mark as read when 50% of message is visible
-      }
-    );
+    if (!unreadSignature) {
+      lastAutoReadSignatureRef.current = "";
+      return;
+    }
 
-    // Observe all message bubbles
-    const messageElements = listRef.current?.querySelectorAll('[data-message-id]');
-    messageElements?.forEach((el) => observer.observe(el));
+    if (lastAutoReadSignatureRef.current === unreadSignature) {
+      return;
+    }
 
-    return () => {
-      observer.disconnect();
-    };
-  }, [sortedMessages, currentUserId, markAsRead]);
+    lastAutoReadSignatureRef.current = unreadSignature;
+    markConversationRead(booking.conversationId);
+    markConversationAsRead();
+  }, [isLoadingHistory, currentUserId, sortedMessages, booking.conversationId, markConversationRead, markConversationAsRead]);
 
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastTypingSentRef = useRef<number>(0);

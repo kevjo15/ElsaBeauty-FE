@@ -6,6 +6,8 @@ import {
 } from "react-router-dom";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { SignalRProvider } from "@/contexts/SignalRContext";
+import { ChatStateProvider } from "@/contexts/ChatStateContext";
 // Import Pages
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
@@ -29,6 +31,8 @@ function App() {
   return (
     <Router>
       <AuthProvider>
+        <SignalRProvider>
+        <ChatStateProvider>
         <ThemeProvider>
           <Toaster position="top-right" richColors />
           <Routes>
@@ -122,6 +126,8 @@ function App() {
             <Route path="/home" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </ThemeProvider>
+        </ChatStateProvider>
+        </SignalRProvider>
       </AuthProvider>
     </Router>
   );

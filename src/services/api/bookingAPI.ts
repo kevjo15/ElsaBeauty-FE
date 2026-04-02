@@ -116,7 +116,7 @@ export async function assignEmployee(
 ): Promise<BookingResponse | null> {
   try {
     const response = await api.put<BookingResponse>(
-      `${ASSIGN_EMPLOYEE_URL}/${bookingId}`,
+      `${ASSIGN_EMPLOYEE_URL}/${bookingId}/employee`,
       { employeeId }
     );
     return response.data;

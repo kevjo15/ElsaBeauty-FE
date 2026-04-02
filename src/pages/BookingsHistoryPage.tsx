@@ -26,6 +26,7 @@ import {
 } from "date-fns";
 import { sv } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
 
 type Tab = "upcoming" | "history";
 
@@ -40,14 +41,31 @@ const getStatusInfo = (status?: string, isPast?: boolean) => {
   return { text: "Bokad", className: "badge-neutral", icon: Clock };
 };
 
+const ChatButtonWithBadge: React.FC<{ booking: BookingResponse }> = ({ booking }) => {
+  const navigate = useNavigate();
+  const unread = useUnreadCount(booking.conversationId);
+  return (
+    <button
+      className="btn btn-primary btn-sm flex-1 sm:flex-none relative"
+      onClick={() => navigate(`/chat/${booking.id}`, { state: { booking } })}
+    >
+      <MessageCircle className="h-4 w-4" />
+      Chat
+      {unread > 0 && (
+        <span className="badge badge-error badge-xs absolute -top-1 -right-1 min-w-[18px] h-[18px] text-[10px]">
+          {unread > 9 ? "9+" : unread}
+        </span>
+      )}
+    </button>
+  );
+};
+
 const BookingsHistoryPage: React.FC = () => {
   const [bookings, setBookings] = useState<BookingResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [err, setErr] = useState<string | null>(null);
   const [active, setActive] = useState<Tab>("upcoming");
   const [canceling, setCanceling] = useState<string | null>(null);
-  const navigate = useNavigate();
-
   const { services } = useServicesWithImages();
 
   const serviceName = (serviceId: string) =>
@@ -160,13 +178,7 @@ const BookingsHistoryPage: React.FC = () => {
             {/* Right: Actions */}
             <div className="flex flex-row sm:flex-col gap-2 sm:items-end">
               {booking.conversationId ? (
-                <button
-                  className="btn btn-primary btn-sm flex-1 sm:flex-none"
-                  onClick={() => navigate(`/chat/${booking.id}`, { state: { booking } })}
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  Chat
-                </button>
+                <ChatButtonWithBadge booking={booking} />
               ) : (
                 <div className="tooltip tooltip-left flex-1 sm:flex-none" data-tip="Chat aktiveras när behandlare tilldelats">
                   <button className="btn btn-ghost btn-sm w-full opacity-50" disabled>
