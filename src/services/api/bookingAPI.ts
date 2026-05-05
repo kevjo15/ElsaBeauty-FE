@@ -21,11 +21,12 @@ import {
  */
 export async function getAvailableTimeSlots(
   serviceId: string,
+  employeeId: string,
   date: string
 ): Promise<TimeSlot[]> {
   try {
     const response = await api.get<DaySlots[]>(GET_AVAILABLE_SLOTS_URL, {
-      params: { serviceId, date },
+      params: { serviceId, employeeId, date },
     });
 
     const availableSlots: TimeSlot[] = [];

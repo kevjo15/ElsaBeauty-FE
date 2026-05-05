@@ -87,3 +87,10 @@ export const sendConversationMessageUrl = (conversationId: string) =>
 
 /* Employee endpoints */
 export const GET_EMPLOYEES_URL = `${API_BASE_URL}/users/employees`;
+
+/* Schedule (base template) endpoints */
+export const getScheduleUrl = (employeeId: string) => `${API_BASE_URL}/schedules/${employeeId}`;
+
+/* Work day endpoints */
+export const getWorkDaysUrl = (employeeId: string) => `${API_BASE_URL}/workdays/${employeeId}`;
+export const generateWorkDaysUrl = (employeeId: string) => `${API_BASE_URL}/workdays/${employeeId}/generate`;
