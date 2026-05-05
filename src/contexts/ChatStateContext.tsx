@@ -54,22 +54,18 @@ export function ChatStateProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setInitialUnreadCounts = useCallback((counts: Record<string, number>) => {
-    // Normalize keys to lowercase so lookups are always consistent.
+    // Normalize keys to lowercase and replace the entire map so stale
+    // keys from a previous session or user switch are always cleared.
     const normalized = Object.fromEntries(
       Object.entries(counts).map(([k, v]) => [k.toLowerCase(), v])
     );
     setUnreadCounts((prev) => {
-      let changed = false;
-      const next = { ...prev };
-
-      Object.entries(normalized).forEach(([key, value]) => {
-        if (next[key] !== value) {
-          next[key] = value;
-          changed = true;
-        }
-      });
-
-      return changed ? next : prev;
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(normalized);
+      const sameKeys =
+        prevKeys.length === nextKeys.length &&
+        nextKeys.every((k) => prev[k] === normalized[k]);
+      return sameKeys ? prev : normalized;
     });
   }, []);
 
