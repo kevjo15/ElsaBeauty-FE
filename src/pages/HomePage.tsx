@@ -6,6 +6,7 @@ import AboutElsa from "@/components/landing/AboutElsa";
 import WhyChoose from "@/components/landing/WhyChoose";
 import CallToAction from "@/components/landing/CallToAction";
 import Footer from "@/components/layout/Footer";
+import ImageWithFallback from "@/components/ImageWithFallback";
 import { useAuth } from "@/services/api/authContext";
 
 const HomePage: React.FC = () => {
@@ -57,10 +58,12 @@ const HomePage: React.FC = () => {
           </div>
           <div className="relative">
             <div className="rounded-2xl overflow-hidden shadow-xl ring-1 ring-base-300/60 bg-base-100">
-              <img
+              <ImageWithFallback
                 src={`${STORAGE_BASE_URL}/homepage/Elsa2.png`}
                 alt="Elsa"
+                loading="eager"
                 className="w-full h-[360px] md:h-[500px] object-cover object-[50%_8%] md:object-[50%_0%] lg:object-[50%_10%]"
+                fallbackText="Bilden kunde inte laddas"
               />
             </div>
           </div>
