@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/components/layout/main-layout";
 import { useAuth } from "@/services/api/authContext";
+import ScheduleSection from "@/components/schedule/ScheduleSection";
 import { MessageCircle, User } from "lucide-react";
 import {
   addDays,
@@ -490,6 +491,13 @@ const EmployeeDashboard: React.FC = () => {
             <div className="modal-backdrop bg-black/30" onClick={() => setAssignConfirm(null)} />
           </dialog>
         )}
+
+        <section className="card bg-base-100 shadow-sm border border-base-300 w-full">
+          <div className="card-body">
+            <h2 className="card-title mb-2">Mina arbetstider</h2>
+            {user?.id && <ScheduleSection employeeId={user.id} />}
+          </div>
+        </section>
 
         {detailBooking && (
           <section className="card bg-base-100 shadow-sm border border-base-300 w-full">
