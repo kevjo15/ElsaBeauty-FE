@@ -2,6 +2,12 @@ import { useState } from "react";
 import { useAuth } from "@/services/api/authContext";
 import { useNavigate } from "react-router-dom";
 
+const DEMO_ACCOUNTS = [
+  { label: "Admin", email: "admin@elsabeauty.se", password: "Password123!" },
+  { label: "Employee", email: "employee@elsabeauty.se", password: "Password123!" },
+  { label: "Customer", email: "customer@elsabeauty.se", password: "Password123!" },
+];
+
 export function LoginForm({
   className,
   ...props
@@ -13,6 +19,25 @@ export function LoginForm({
 
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  const loginAsDemo = async (demoEmail: string, demoPassword: string) => {
+    setLoading(true);
+    setError(null);
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    try {
+      await login(demoEmail, demoPassword);
+      navigate("/home");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unexpected error occurred");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +133,22 @@ export function LoginForm({
               </a>
             </div>
           </form>
+
+          {/* Demo accounts */}
+          <div className="divider text-xs text-base-content/50">Try a demo account</div>
+          <div className="flex gap-2 justify-center">
+            {DEMO_ACCOUNTS.map((account) => (
+              <button
+                key={account.label}
+                type="button"
+                className="btn btn-outline btn-sm flex-1"
+                disabled={loading}
+                onClick={() => loginAsDemo(account.email, account.password)}
+              >
+                {account.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

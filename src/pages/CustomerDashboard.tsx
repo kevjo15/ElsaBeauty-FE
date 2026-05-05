@@ -4,6 +4,7 @@ import { useAuth } from "@/services/api/authContext";
 import { useNavigate } from "react-router-dom";
 import { getMyBookings, type BookingResponse } from "@/services/api";
 import { useServicesWithImages } from "@/hooks/useServicesWithImages";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
 import {
   Calendar,
   Clock,
@@ -16,6 +17,25 @@ import {
 } from "lucide-react";
 import { format, isAfter, parseISO } from "date-fns";
 import { sv } from "date-fns/locale";
+
+const ChatButton: React.FC<{ booking: BookingResponse; userId: string }> = ({ booking, userId }) => {
+  const navigate = useNavigate();
+  const unread = useUnreadCount(booking.conversationId, userId);
+  return (
+    <button
+      className="btn btn-outline btn-sm relative"
+      onClick={() => navigate(`/chat/${booking.id}`, { state: { booking } })}
+    >
+      <MessageCircle className="h-4 w-4" />
+      Chatta
+      {unread > 0 && (
+        <span className="badge badge-primary badge-xs absolute -top-1 -right-1 min-w-[18px] h-[18px] text-[10px] flex items-center justify-center">
+          {unread > 9 ? "9+" : unread}
+        </span>
+      )}
+    </button>
+  );
+};
 
 const CustomerDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -123,13 +143,7 @@ const CustomerDashboard: React.FC = () => {
                   </div>
                   <div className="flex gap-2 sm:flex-col">
                     {nextBooking.conversationId && (
-                      <button
-                        className="btn btn-outline btn-sm"
-                        onClick={() => navigate(`/chat/${nextBooking.id}`)}
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                        Chatta
-                      </button>
+                      <ChatButton booking={nextBooking} userId={user?.id ?? ""} />
                     )}
                     <button
                       className="btn btn-primary btn-sm"

@@ -21,11 +21,12 @@ import {
  */
 export async function getAvailableTimeSlots(
   serviceId: string,
+  employeeId: string,
   date: string
 ): Promise<TimeSlot[]> {
   try {
     const response = await api.get<DaySlots[]>(GET_AVAILABLE_SLOTS_URL, {
-      params: { serviceId, date },
+      params: { serviceId, employeeId, date },
     });
 
     const availableSlots: TimeSlot[] = [];
@@ -116,7 +117,7 @@ export async function assignEmployee(
 ): Promise<BookingResponse | null> {
   try {
     const response = await api.put<BookingResponse>(
-      `${ASSIGN_EMPLOYEE_URL}/${bookingId}`,
+      `${ASSIGN_EMPLOYEE_URL}/${bookingId}/employee`,
       { employeeId }
     );
     return response.data;
@@ -131,9 +132,7 @@ export async function assignEmployee(
  */
 export async function getAllBookings(): Promise<BookingResponse[]> {
   try {
-    const response = await api.get<BookingResponse[]>(
-      `${API_BASE_URL}/Booking/GetAllBookings`
-    );
+    const response = await api.get<BookingResponse[]>(`${API_BASE_URL}/bookings`);
     return response.data ?? [];
   } catch (error) {
     console.error("Failed to fetch all bookings:", error);

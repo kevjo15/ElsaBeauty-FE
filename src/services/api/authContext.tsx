@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { jwtDecode } from "jwt-decode";
 import { loginUser, logoutUser, tryRestoreAuth } from "./authService";
-import { api } from "./apiService";
+import { api, resetAuthExpiredState, subscribeToAuthExpired } from "./apiService";
 import { getAccessToken, clearAccessToken } from "./tokenStore";
 import { ME_URL, USER_NAME_URL } from "./apiUrl";
 
@@ -126,6 +126,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * Attempts to restore auth from HttpOnly refresh token cookie.
    */
   useEffect(() => {
+    const unsubscribe = subscribeToAuthExpired(() => {
+      clearAccessToken();
+      setAuthState({ isAuthenticated: false, user: null });
+      setIsLoading(false);
+    });
+
     const initAuth = async () => {
       try {
         // Try to get a new access token using the refresh token cookie
@@ -145,6 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     initAuth();
+    return unsubscribe;
   }, [fetchUser]);
 
   /**
@@ -152,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const login = useCallback(async (email: string, password: string) => {
     try {
+      resetAuthExpiredState();
       await loginUser(email, password);
       await fetchUser();
     } catch (error) {

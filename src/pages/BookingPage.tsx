@@ -3,7 +3,7 @@ import { useAuth } from "@/services/api/authContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import MainLayout from "@/components/layout/main-layout";
 import { format } from "date-fns";
-import { sv } from "date-fns/locale"; // Importera svensk locale
+import { sv } from "date-fns/locale";
 import {
   createBooking,
   type Service,
@@ -11,6 +11,7 @@ import {
   type BookingRequest,
 } from "@/services/api";
 import ServiceSelector from "@/components/booking/ServiceSelector";
+import EmployeeSelector from "@/components/booking/EmployeeSelector";
 import TimeSlotSelector from "@/components/booking/TimeSlotSelector";
 import BookingSummary from "@/components/booking/BookingSummary";
 import DateSelector from "@/components/booking/DateSelector";
@@ -19,14 +20,22 @@ import { useServicesWithImages } from "@/hooks/useServicesWithImages";
 import { useTimeSlots } from "@/hooks/useTimeSlots";
 import { CheckCircle2, Clock, X } from "lucide-react";
 import { isPast, startOfDay } from "date-fns";
+import { getEmployees } from "@/services/api/userAPI";
+import type { Employee } from "@/services/api/types";
 
 interface ApiError {
   response?: {
-    data?: {
-      error?: string;
-    };
+    data?: string | { error?: string };
   };
 }
+
+const extractErrorMessage = (error: unknown): string => {
+  const apiError = error as ApiError;
+  const data = apiError?.response?.data;
+  if (typeof data === "string" && data.length > 0) return data;
+  if (typeof data === "object" && data?.error) return data.error;
+  return "Misslyckades med att skapa bokning. Försök igen.";
+};
 
 const BOOKING_STORAGE_KEY = "elsabeauty_booking_draft";
 const DRAFT_MAX_AGE_HOURS = 24;
@@ -34,9 +43,10 @@ const DRAFT_MAX_AGE_HOURS = 24;
 interface BookingDraft {
   serviceId?: string;
   serviceName?: string;
-  date?: string; // ISO string
+  employeeId?: string;
+  date?: string;
   step: number;
-  savedAt: number; // timestamp
+  savedAt: number;
 }
 
 const saveBookingDraft = (draft: BookingDraft) => {
@@ -50,9 +60,7 @@ const saveBookingDraft = (draft: BookingDraft) => {
 const loadBookingDraft = (): BookingDraft | null => {
   try {
     const saved = sessionStorage.getItem(BOOKING_STORAGE_KEY);
-    if (saved) {
-      return JSON.parse(saved) as BookingDraft;
-    }
+    if (saved) return JSON.parse(saved) as BookingDraft;
   } catch {
     // sessionStorage might be unavailable
   }
@@ -68,27 +76,20 @@ const clearBookingDraft = () => {
 };
 
 const isDraftValid = (draft: BookingDraft): boolean => {
-  // Check if draft is too old (> 24 hours)
   const ageInHours = (Date.now() - draft.savedAt) / (1000 * 60 * 60);
-  if (ageInHours > DRAFT_MAX_AGE_HOURS) {
-    return false;
-  }
-
-  // Check if selected date is in the past
+  if (ageInHours > DRAFT_MAX_AGE_HOURS) return false;
   if (draft.date) {
     const draftDate = startOfDay(new Date(draft.date));
-    if (isPast(draftDate) && draftDate < startOfDay(new Date())) {
-      return false;
-    }
+    if (isPast(draftDate) && draftDate < startOfDay(new Date())) return false;
   }
-
   return true;
 };
 
 const stepsConfig = [
   { id: 1, label: "Välj behandling" },
-  { id: 2, label: "Välj datum" },
-  { id: 3, label: "Välj tid" },
+  { id: 2, label: "Välj medarbetare" },
+  { id: 3, label: "Välj datum" },
+  { id: 4, label: "Välj tid" },
 ];
 
 const BookingPage: React.FC = () => {
@@ -97,12 +98,15 @@ const BookingPage: React.FC = () => {
   const location = useLocation();
   const { services, error: servicesError } = useServicesWithImages();
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const {
     availableSlots,
     loading: timeSlotsLoading,
     error: timeSlotsError,
-  } = useTimeSlots(selectedService?.id, selectedDate);
+  } = useTimeSlots(selectedService?.id, selectedEmployee?.id, selectedDate);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
@@ -112,11 +116,16 @@ const BookingPage: React.FC = () => {
   const [showDraftBanner, setShowDraftBanner] = useState(false);
   const [pendingDraft, setPendingDraft] = useState<BookingDraft | null>(null);
 
-  // Load saved draft from sessionStorage on mount
+  useEffect(() => {
+    setEmployeesLoading(true);
+    getEmployees()
+      .then(setEmployees)
+      .finally(() => setEmployeesLoading(false));
+  }, []);
+
   useEffect(() => {
     if (draftLoaded || services.length === 0) return;
 
-    // Check for preselected service from navigation state first
     const navState = location.state as {
       preselectedServiceId?: string;
       startAtStep?: number;
@@ -127,90 +136,77 @@ const BookingPage: React.FC = () => {
       if (pre) {
         setSelectedService(pre);
         setSelectedSlot(null);
-        setStep(
-          navState.startAtStep && navState.startAtStep >= 1 && navState.startAtStep <= 3
-            ? navState.startAtStep
-            : 2
-        );
-        clearBookingDraft(); // Clear old draft when coming from service page
+        setStep(navState.startAtStep ?? 2);
+        clearBookingDraft();
         setDraftLoaded(true);
         return;
       }
     }
 
-    // Otherwise, check for saved draft in sessionStorage
     const draft = loadBookingDraft();
-    if (draft && draft.serviceId) {
-      // Validate the draft
+    if (draft?.serviceId) {
       if (!isDraftValid(draft)) {
-        // Draft is invalid (too old or date in past) - clear silently
         clearBookingDraft();
         setDraftLoaded(true);
         return;
       }
-
-      // Draft is valid - show banner to let user choose
       const savedService = services.find((s) => s.id === draft.serviceId);
       if (savedService) {
-        setPendingDraft({
-          ...draft,
-          serviceName: savedService.name,
-        });
+        setPendingDraft({ ...draft, serviceName: savedService.name });
         setShowDraftBanner(true);
       }
     }
     setDraftLoaded(true);
   }, [services, location.state, draftLoaded]);
 
-  // Handle user choosing to continue with draft
   const handleContinueDraft = () => {
     if (!pendingDraft) return;
-
     const savedService = services.find((s) => s.id === pendingDraft.serviceId) || null;
-    if (savedService) {
-      setSelectedService(savedService);
+    if (savedService) setSelectedService(savedService);
+    if (pendingDraft.employeeId) {
+      const emp = employees.find((e) => e.id === pendingDraft.employeeId) || null;
+      if (emp) setSelectedEmployee(emp);
     }
-    if (pendingDraft.date) {
-      setSelectedDate(new Date(pendingDraft.date));
-    }
-    if (pendingDraft.step) {
-      setStep(pendingDraft.step);
-    }
+    if (pendingDraft.date) setSelectedDate(new Date(pendingDraft.date));
+    if (pendingDraft.step) setStep(pendingDraft.step);
     setShowDraftBanner(false);
     setPendingDraft(null);
   };
 
-  // Handle user choosing to start fresh
   const handleStartFresh = () => {
     clearBookingDraft();
     setShowDraftBanner(false);
     setPendingDraft(null);
     setSelectedService(null);
+    setSelectedEmployee(null);
     setSelectedDate(undefined);
     setSelectedSlot(null);
     setStep(1);
   };
 
-  // Save draft to sessionStorage when state changes
   useEffect(() => {
     if (!draftLoaded || showDraftBanner) return;
-
-    // Only save if there's something to save
     if (selectedService) {
       const draft: BookingDraft = {
         serviceId: selectedService.id,
         serviceName: selectedService.name,
+        employeeId: selectedEmployee?.id,
         date: selectedDate?.toISOString(),
         step,
         savedAt: Date.now(),
       };
       saveBookingDraft(draft);
     }
-  }, [selectedService, selectedDate, step, draftLoaded, showDraftBanner]);
+  }, [selectedService, selectedEmployee, selectedDate, step, draftLoaded, showDraftBanner]);
 
   const handleServiceChange = (serviceId: string) => {
-    const service = services.find((s) => s.id === serviceId) || null;
-    setSelectedService(service);
+    setSelectedService(services.find((s) => s.id === serviceId) || null);
+    setSelectedEmployee(null);
+    setSelectedSlot(null);
+  };
+
+  const handleEmployeeChange = (employee: Employee) => {
+    setSelectedEmployee(employee);
     setSelectedSlot(null);
   };
 
@@ -219,39 +215,30 @@ const BookingPage: React.FC = () => {
     setSelectedSlot(null);
   };
 
-  const handleSlotSelect = (slot: TimeSlot) => {
-    setSelectedSlot(slot);
-  };
-
   const canNavigateToStep = (targetStep: number) => {
     if (targetStep <= 1) return true;
     if (targetStep === 2) return !!selectedService;
-    if (targetStep === 3) return !!selectedService && !!selectedDate;
+    if (targetStep === 3) return !!selectedService && !!selectedEmployee;
+    if (targetStep === 4) return !!selectedService && !!selectedEmployee && !!selectedDate;
     return false;
   };
 
   const handleStepNavigation = (targetStep: number) => {
     if (step === targetStep) return;
-    if (canNavigateToStep(targetStep)) {
-      setStep(targetStep);
-    }
+    if (canNavigateToStep(targetStep)) setStep(targetStep);
   };
 
   const handleOpenModal = () => {
-    if (!selectedService || !selectedDate || !selectedSlot) {
-      setBookingError("Vänligen välj tjänst, datum och tid.");
+    if (!selectedService || !selectedEmployee || !selectedDate || !selectedSlot) {
+      setBookingError("Vänligen välj behandling, medarbetare, datum och tid.");
       return;
     }
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
-
   const handleConfirmBooking = async () => {
-    if (!user || !selectedService || !selectedSlot) {
-      setBookingError("Vänligen välj tjänst, datum och tid.");
+    if (!user || !selectedService || !selectedEmployee || !selectedSlot) {
+      setBookingError("Vänligen välj behandling, medarbetare, datum och tid.");
       return;
     }
 
@@ -260,55 +247,50 @@ const BookingPage: React.FC = () => {
 
     try {
       const bookingData: BookingRequest = {
-        userId: user?.id || "test-user-id",
+        userId: user.id,
         serviceId: selectedService.id,
+        employeeId: selectedEmployee.id,
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
       };
 
       const bookingResponse = await createBooking(bookingData);
-      const bookingId = bookingResponse?.id;
-
-      // Clear draft from sessionStorage after successful booking
       clearBookingDraft();
 
       setSelectedService(null);
+      setSelectedEmployee(null);
       setSelectedDate(undefined);
       setSelectedSlot(null);
 
-      navigate(`/booking-confirmation/${bookingId || ""}`, {
+      navigate(`/booking-confirmation/${bookingResponse?.id || ""}`, {
         state: {
           bookingDetails: {
             service: selectedService,
+            employee: selectedEmployee,
             date: selectedDate,
             slot: selectedSlot,
           },
         },
       });
     } catch (error: unknown) {
-      console.error("Error creating booking:", error);
-      const apiError = error as ApiError;
-      if (apiError.response?.data?.error) {
-        setBookingError(apiError.response.data.error);
-      } else {
-        setBookingError("Misslyckades med att skapa bokning. Försök igen.");
+      const msg = extractErrorMessage(error);
+      setBookingError(msg);
+      // If the slot was taken by someone else, clear it so the user picks a new one
+      if (msg.includes("inte längre tillgänglig")) {
+        setSelectedSlot(null);
       }
     } finally {
       setBookingLoading(false);
-      setIsModalOpen(false); // Stäng modalen efter bekräftelse/fel
+      setIsModalOpen(false);
     }
   };
 
-  const formatTimeSlot = (slot: TimeSlot) => {
-    const startTime = new Date(slot.startTime);
-    const endTime = new Date(slot.endTime);
-    return `${format(startTime, "HH:mm")} - ${format(endTime, "HH:mm")}`;
-  };
+  const formatTimeSlot = (slot: TimeSlot) =>
+    `${format(new Date(slot.startTime), "HH:mm")} - ${format(new Date(slot.endTime), "HH:mm")}`;
 
   return (
     <MainLayout>
       <div className="container mx-auto max-w-4xl py-6">
-        {/* Banner för påbörjad bokning */}
         {showDraftBanner && pendingDraft && (
           <div className="mb-6 alert bg-primary/10 border border-primary/20">
             <Clock className="h-5 w-5 text-primary" />
@@ -322,24 +304,14 @@ const BookingPage: React.FC = () => {
               </p>
             </div>
             <div className="flex gap-2">
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={handleStartFresh}
-              >
+              <button className="btn btn-ghost btn-sm" onClick={handleStartFresh}>
                 Börja om
               </button>
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={handleContinueDraft}
-              >
+              <button className="btn btn-primary btn-sm" onClick={handleContinueDraft}>
                 Fortsätt
               </button>
             </div>
-            <button
-              className="btn btn-ghost btn-sm btn-circle"
-              onClick={handleStartFresh}
-              aria-label="Stäng"
-            >
+            <button className="btn btn-ghost btn-sm btn-circle" onClick={handleStartFresh} aria-label="Stäng">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -359,17 +331,11 @@ const BookingPage: React.FC = () => {
                   : isCompleted
                   ? "border-primary/40 bg-primary/10 text-primary"
                   : "border-base-300 bg-base-100 text-base-content/50",
-                isClickable
-                  ? "cursor-pointer hover:border-primary"
-                  : "cursor-default",
+                isClickable ? "cursor-pointer hover:border-primary" : "cursor-default",
               ].join(" ");
               const labelClasses = [
                 "mt-3 text-center text-sm font-medium transition-colors",
-                isActive
-                  ? "text-base-content"
-                  : isCompleted
-                  ? "text-base-content/80"
-                  : "text-base-content/60",
+                isActive ? "text-base-content" : isCompleted ? "text-base-content/80" : "text-base-content/60",
               ].join(" ");
 
               return (
@@ -377,18 +343,11 @@ const BookingPage: React.FC = () => {
                   <div className="flex min-w-0 flex-col items-center">
                     <button
                       type="button"
-                      data-step={item.id}
                       onClick={() => handleStepNavigation(item.id)}
                       disabled={!isClickable}
                       className={circleClasses}
                     >
-                      {isCompleted ? (
-                        <span className="flex h-5 w-5 items-center justify-center">
-                          <CheckCircle2 className="h-4 w-4" />
-                        </span>
-                      ) : (
-                        item.id
-                      )}
+                      {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : item.id}
                     </button>
                     <span className={labelClasses}>{item.label}</span>
                   </div>
@@ -419,20 +378,10 @@ const BookingPage: React.FC = () => {
                 title="Välj din behandling"
               />
               <div className="mt-4 flex justify-between">
-                <button
-                  className="btn btn-ghost"
-                  onClick={() => {
-                    clearBookingDraft();
-                    navigate("/dashboard");
-                  }}
-                >
+                <button className="btn btn-ghost" onClick={() => { clearBookingDraft(); navigate("/dashboard"); }}>
                   Avbryt
                 </button>
-                <button
-                  className="btn btn-primary"
-                  onClick={() => setStep(2)}
-                  disabled={!selectedService}
-                >
+                <button className="btn btn-primary" onClick={() => setStep(2)} disabled={!selectedService}>
                   Nästa
                 </button>
               </div>
@@ -440,6 +389,24 @@ const BookingPage: React.FC = () => {
           )}
 
           {step === 2 && (
+            <>
+              <EmployeeSelector
+                employees={employees}
+                selectedEmployee={selectedEmployee}
+                onEmployeeChange={handleEmployeeChange}
+                loading={employeesLoading}
+                title="Välj medarbetare"
+              />
+              <div className="mt-4 flex justify-between">
+                <button className="btn btn-ghost" onClick={() => setStep(1)}>Tillbaka</button>
+                <button className="btn btn-primary" onClick={() => setStep(3)} disabled={!selectedEmployee}>
+                  Nästa
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === 3 && (
             <>
               <DateSelector
                 selectedDate={selectedDate}
@@ -449,21 +416,15 @@ const BookingPage: React.FC = () => {
                 selectedService={selectedService}
               />
               <div className="mt-4 flex justify-between">
-                <button className="btn btn-ghost" onClick={() => setStep(1)}>
-                  Tillbaka
-                </button>
-                <button
-                  className="btn btn-primary"
-                  onClick={() => setStep(3)}
-                  disabled={!selectedDate}
-                >
+                <button className="btn btn-ghost" onClick={() => setStep(2)}>Tillbaka</button>
+                <button className="btn btn-primary" onClick={() => setStep(4)} disabled={!selectedDate}>
                   Nästa
                 </button>
               </div>
             </>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <>
               <TimeSlotSelector
                 loading={timeSlotsLoading}
@@ -471,40 +432,31 @@ const BookingPage: React.FC = () => {
                 selectedDate={!!selectedDate}
                 availableSlots={availableSlots}
                 selectedSlot={selectedSlot}
-                onSlotSelect={handleSlotSelect}
+                onSlotSelect={setSelectedSlot}
                 formatTimeSlot={formatTimeSlot}
                 title="Välj tid"
                 subtitle={
                   selectedDate
-                    ? `Lediga tider för ${format(
-                        selectedDate,
-                        "EEEE d MMMM yyyy",
-                        { locale: sv }
-                      )}`
+                    ? `Lediga tider för ${format(selectedDate, "EEEE d MMMM yyyy", { locale: sv })}`
                     : ""
                 }
               />
-
               <BookingSummary
                 selectedService={selectedService}
+                selectedEmployee={selectedEmployee}
                 selectedDate={selectedDate}
                 selectedSlot={selectedSlot}
                 formatTimeSlot={formatTimeSlot}
               />
               <div className="mt-4 flex justify-between">
-                <button className="btn btn-ghost" onClick={() => setStep(2)}>
-                  Tillbaka
-                </button>
+                <button className="btn btn-ghost" onClick={() => setStep(3)}>Tillbaka</button>
                 <button
                   className="btn btn-primary"
                   onClick={handleOpenModal}
                   disabled={!selectedSlot || bookingLoading}
                 >
                   {bookingLoading ? (
-                    <>
-                      <span className="loading loading-spinner mr-2" />
-                      Bekräftar...
-                    </>
+                    <><span className="loading loading-spinner mr-2" />Bekräftar...</>
                   ) : (
                     "Bekräfta bokning"
                   )}
@@ -513,6 +465,7 @@ const BookingPage: React.FC = () => {
             </>
           )}
         </div>
+
         {(servicesError || timeSlotsError || bookingError) && (
           <div role="alert" className="alert alert-error mt-6">
             <h3 className="font-bold">Fel</h3>
@@ -522,9 +475,10 @@ const BookingPage: React.FC = () => {
 
         <BookingConfirmationModal
           isOpen={isModalOpen}
-          onClose={handleCloseModal}
+          onClose={() => setIsModalOpen(false)}
           onConfirm={handleConfirmBooking}
           selectedService={selectedService}
+          selectedEmployee={selectedEmployee}
           selectedDate={selectedDate}
           selectedSlot={selectedSlot}
           loading={bookingLoading}

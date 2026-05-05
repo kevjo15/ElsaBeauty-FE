@@ -1,38 +1,14 @@
-import { useEffect, useState } from "react";
-import { fetchConversationMessages } from "@/services/api/chatAPI";
+import { useChatState } from "@/contexts/ChatStateContext";
 
 /**
- * Hook to count unread messages in a conversation.
- * A message is considered unread if:
- * - It was sent by someone other than the current user
- * - It has no readAt timestamp
+ * Returns the number of unread messages for a given conversation.
+ * Reads directly from ChatStateContext — no HTTP requests.
  */
 export function useUnreadCount(
   conversationId: string | undefined,
-  userId: string | undefined
+  _userId?: string
 ): number {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    if (!conversationId || !userId) {
-      setCount(0);
-      return;
-    }
-
-    const fetchUnread = async () => {
-      try {
-        const messages = await fetchConversationMessages(conversationId);
-        const unread = messages.filter(
-          (m) => m.senderId !== userId && !m.readAt
-        ).length;
-        setCount(unread);
-      } catch {
-        setCount(0);
-      }
-    };
-
-    fetchUnread();
-  }, [conversationId, userId]);
-
-  return count;
+  const { unreadCounts } = useChatState();
+  if (!conversationId) return 0;
+  return unreadCounts[conversationId.toLowerCase()] ?? 0;
 }
