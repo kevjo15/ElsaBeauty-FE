@@ -68,13 +68,15 @@ export interface BookingResponse {
   employeeId?: string;
   conversationId?: string;
   isChatOpen?: boolean;
-  // Flat strings (always present when data exists)
+  status?: string;
+  // Flat strings
   employeeName?: string;
   customerName?: string;
   serviceName?: string;
-  // Nested objects (populated from BE when user/employee data is loaded)
+  // Nested objects populated from BE
   user?: { firstName?: string; lastName?: string; email?: string };
   employee?: { firstName?: string; lastName?: string; email?: string };
+  service?: { id: string; name: string; description?: string; duration?: string; price?: number };
 }
 
 export interface UserNameDTO {

@@ -80,11 +80,6 @@ const WeeklyScheduleEditor: React.FC<WeeklyScheduleEditorProps> = ({
     }
   }, [employeeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const weekHasDays = (ws: Date) =>
-    Array.from({ length: 7 }, (_, i) => toDateStr(addDays(ws, i))).some((d) =>
-      upcomingDates.has(d)
-    );
-
   const weekDayCount = (ws: Date) =>
     Array.from({ length: 7 }, (_, i) => toDateStr(addDays(ws, i))).filter((d) =>
       upcomingDates.has(d)
