@@ -1,5 +1,6 @@
 import React from "react";
 import { type Service, type TimeSlot } from "@/services/api";
+import type { Employee } from "@/services/api/types";
 import { format } from "date-fns";
 
 interface BookingConfirmationModalProps {
@@ -7,6 +8,7 @@ interface BookingConfirmationModalProps {
   onClose: () => void;
   onConfirm: () => void;
   selectedService: Service | null;
+  selectedEmployee: Employee | null;
   selectedDate: Date | undefined;
   selectedSlot: TimeSlot | null;
   loading: boolean;
@@ -18,6 +20,7 @@ const BookingConfirmationModal: React.FC<BookingConfirmationModalProps> = ({
   onClose,
   onConfirm,
   selectedService,
+  selectedEmployee,
   selectedDate,
   selectedSlot,
   loading,
@@ -26,6 +29,10 @@ const BookingConfirmationModal: React.FC<BookingConfirmationModalProps> = ({
   if (!isOpen || !selectedService || !selectedDate || !selectedSlot) {
     return null;
   }
+
+  const employeeName = selectedEmployee
+    ? [selectedEmployee.firstName, selectedEmployee.lastName].filter(Boolean).join(" ") || selectedEmployee.email
+    : null;
 
   return (
     <dialog className="modal" open={isOpen}>
@@ -38,6 +45,12 @@ const BookingConfirmationModal: React.FC<BookingConfirmationModalProps> = ({
             <span className="font-medium">Tjänst:</span>
             <span>{selectedService.name}</span>
           </div>
+          {employeeName && (
+            <div className="flex justify-between">
+              <span className="font-medium">Medarbetare:</span>
+              <span>{employeeName}</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="font-medium">Datum:</span>
             <span>{format(selectedDate, "PPP")}</span>
@@ -53,23 +66,12 @@ const BookingConfirmationModal: React.FC<BookingConfirmationModalProps> = ({
         </div>
 
         <div className="modal-action">
-          <button
-            className="btn btn-ghost"
-            onClick={onClose}
-            disabled={loading}
-          >
+          <button className="btn btn-ghost" onClick={onClose} disabled={loading}>
             Avbryt
           </button>
-          <button
-            className="btn btn-primary"
-            onClick={onConfirm}
-            disabled={loading}
-          >
+          <button className="btn btn-primary" onClick={onConfirm} disabled={loading}>
             {loading ? (
-              <>
-                <span className="loading loading-spinner mr-2"></span>
-                Bekräftar...
-              </>
+              <><span className="loading loading-spinner mr-2" />Bekräftar...</>
             ) : (
               "Bekräfta"
             )}

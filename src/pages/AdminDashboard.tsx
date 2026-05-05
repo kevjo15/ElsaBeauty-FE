@@ -14,6 +14,7 @@ import { addDays, format, startOfDay } from "date-fns";
 import { sv } from "date-fns/locale";
 import { MessageCircle, User } from "lucide-react";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
+import ScheduleSection from "@/components/schedule/ScheduleSection";
 
 // Helper to get customer display name
 const customerName = (b: BookingResponse): string => {
@@ -88,10 +89,11 @@ const AdminDashboard: React.FC = () => {
   const [assigning, setAssigning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "unassigned" | "chat">("all");
-  const [sortSoonest, setSortSoonest] = useState<boolean>(true);
+  const [sortSoonest, setSortSoonest] = useState<boolean>(false);
   const [assignConfirm, setAssignConfirm] = useState<AssignConfirmState>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+  const [selectedScheduleEmployee, setSelectedScheduleEmployee] = useState<Employee | null>(null);
 
   const loadData = async () => {
     try {
@@ -558,6 +560,35 @@ const AdminDashboard: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        </section>
+
+        <section className="card bg-base-100 shadow-sm border border-base-300 rounded-xl">
+          <div className="card-body">
+            <h2 className="card-title">Hantera schema</h2>
+            <p className="text-sm text-base-content/70 mb-4">
+              Välj en medarbetare för att visa och redigera hens arbetsschema.
+            </p>
+            <select
+              className="select select-bordered w-full max-w-sm"
+              value={selectedScheduleEmployee?.id || ""}
+              onChange={(e) => {
+                const emp = employees.find((em) => em.id === e.target.value) || null;
+                setSelectedScheduleEmployee(emp);
+              }}
+            >
+              <option value="">Välj medarbetare...</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {[emp.firstName, emp.lastName].filter(Boolean).join(" ") || emp.email}
+                </option>
+              ))}
+            </select>
+            {selectedScheduleEmployee && (
+              <div className="mt-4">
+                <ScheduleSection employeeId={selectedScheduleEmployee.id} />
+              </div>
+            )}
           </div>
         </section>
 

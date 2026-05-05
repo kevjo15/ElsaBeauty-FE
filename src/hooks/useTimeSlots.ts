@@ -7,6 +7,7 @@ import { format } from "date-fns";
 
 export const useTimeSlots = (
   serviceId: string | undefined,
+  employeeId: string | undefined,
   date: Date | undefined
 ) => {
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
@@ -15,12 +16,12 @@ export const useTimeSlots = (
 
   useEffect(() => {
     const fetchTimeSlots = async () => {
-      if (serviceId && date) {
+      if (serviceId && employeeId && date) {
         setLoading(true);
         setError(null);
         try {
           const formattedDate = format(date, "yyyy-MM-dd");
-          const slots = await getAvailableTimeSlots(serviceId, formattedDate);
+          const slots = await getAvailableTimeSlots(serviceId, employeeId, formattedDate);
           const selectedDateSlots = slots.filter((slot) => {
             const slotDate = format(new Date(slot.startTime), "yyyy-MM-dd");
             return slotDate === formattedDate;
@@ -39,7 +40,7 @@ export const useTimeSlots = (
     };
 
     fetchTimeSlots();
-  }, [serviceId, date]);
+  }, [serviceId, employeeId, date]);
 
   return { availableSlots, loading, error };
 };

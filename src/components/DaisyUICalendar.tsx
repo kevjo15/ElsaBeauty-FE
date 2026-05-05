@@ -18,7 +18,8 @@ const DaisyUICalendar: React.FC<DaisyUICalendarProps> = ({
       mode="single"
       selected={selectedDate}
       onSelect={onDateChange}
-      disabled={disabled}
+      disabled={[{ before: new Date() }, ...(disabled ? [true as const] : [])]}
+      fromDate={new Date()}
       className="react-day-picker p-4" // DaisyUI class for styling
       classNames={{
         // Custom classNames to integrate with DaisyUI

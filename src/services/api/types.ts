@@ -31,8 +31,32 @@ export interface DaySlots {
 export interface BookingRequest {
   userId: string;
   serviceId: string;
+  employeeId: string;
   startTime: string;
   endTime: string;
+}
+
+export interface EmployeeSchedule {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
+
+export interface WorkDay {
+  date: string;      // "yyyy-MM-dd"
+  startTime: string; // "HH:mm:ss"
+  endTime: string;   // "HH:mm:ss"
+}
+
+export interface SetWorkDaysRequest {
+  from: string;          // "yyyy-MM-dd"
+  to: string;            // "yyyy-MM-dd"
+  workDays: WorkDay[];
+}
+
+export interface GenerateWorkDaysRequest {
+  from: string; // "yyyy-MM-dd"
+  to: string;   // "yyyy-MM-dd"
 }
 
 export interface BookingResponse {
@@ -45,12 +69,13 @@ export interface BookingResponse {
   conversationId?: string;
   isChatOpen?: boolean;
   status?: string;
-  // Potential extra fields from backend
+  // Flat strings
   employeeName?: string;
   customerName?: string;
   serviceName?: string;
+  // Nested objects populated from BE
   user?: { firstName?: string; lastName?: string; email?: string };
-  employee?: { firstName?: string; lastName?: string };
+  employee?: { firstName?: string; lastName?: string; email?: string };
   service?: { id: string; name: string; description?: string; duration?: string; price?: number };
 }
 
@@ -80,4 +105,24 @@ export interface Employee {
   firstName?: string;
   lastName?: string;
   email: string;
+}
+
+export enum NotificationType {
+  BookingReminder = 0,
+  BookingConfirmation = 1,
+  BookingCancellation = 2,
+  BookingUpdated = 3,
+  MessageReceived = 4,
+}
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  createdAt: string;
+  isRead: boolean;
+  type: NotificationType;
+  bookingId?: string;
+  userId: string;
+  conversationId?: string;
 }

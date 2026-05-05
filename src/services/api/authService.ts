@@ -1,6 +1,6 @@
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
-import { LOGIN_URL, REVOKE_REFRESH_TOKEN_URL } from "./apiUrl";
+import { LOGIN_URL, REGISTER_URL, REVOKE_REFRESH_TOKEN_URL } from "./apiUrl";
 import { api, refreshAccessToken } from "./apiService";
 import { setAccessToken, clearAccessToken, getAccessToken } from "./tokenStore";
 
@@ -23,6 +23,40 @@ export function decodeAccessToken(token: string): JwtPayload {
     return jwtDecode<JwtPayload>(token);
   } catch {
     throw new Error("Failed to decode access token");
+  }
+}
+
+export interface RegisterData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  password: string;
+  confirmPassword: string;
+}
+
+/**
+ * Registers a new user.
+ */
+export async function registerUser(data: RegisterData): Promise<void> {
+  try {
+    await axios.post(REGISTER_URL, data);
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const responseData = error.response?.data;
+      if (Array.isArray(responseData)) {
+        throw new Error(responseData.join(" "));
+      }
+      if (responseData?.errors && Array.isArray(responseData.errors)) {
+        throw new Error(responseData.errors.join(" "));
+      }
+      throw new Error(
+        typeof responseData === "string"
+          ? responseData
+          : "Registration failed. Please try again."
+      );
+    }
+    throw new Error("An unexpected error occurred");
   }
 }
 

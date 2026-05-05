@@ -1,6 +1,7 @@
 import {
   getConversationMessagesUrl,
   sendConversationMessageUrl,
+  API_BASE_URL,
 } from "./apiUrl";
 import { api } from "./apiService";
 import type { ChatMessage } from "./types";
@@ -22,6 +23,12 @@ type RawChatMessage = Partial<{
   ReadAt: string;
 }>;
 
+function normalizeOptionalTimestamp(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 const toChatMessage = (raw: RawChatMessage | unknown): ChatMessage => {
   const r = (typeof raw === "object" && raw !== null ? raw : {}) as RawChatMessage;
   const sender =
@@ -36,7 +43,7 @@ const toChatMessage = (raw: RawChatMessage | unknown): ChatMessage => {
     senderId: sender,
     content: r.content ?? r.Content ?? "",
     sentAt: r.sentAt ?? r.SentAt ?? new Date().toISOString(),
-    readAt: r.readAt ?? r.ReadAt,
+    readAt: normalizeOptionalTimestamp(r.readAt ?? r.ReadAt),
   };
 };
 
@@ -66,6 +73,18 @@ export async function sendMessageHttp(
     SenderId: payload.senderId,
     Content: payload.content,
   });
+}
+
+/**
+ * HTTP fallback for marking all messages in a conversation as read.
+ * Used when the SignalR connection is not yet established.
+ */
+export async function markConversationAsReadHttp(conversationId: string): Promise<void> {
+  try {
+    await api.patch(`${API_BASE_URL}/conversations/${conversationId}/read`);
+  } catch {
+    // best-effort
+  }
 }
 
 export { toChatMessage };
