@@ -174,7 +174,7 @@ export function useSignalRChat({
 
     const onMessage = (raw: unknown) => {
       const incoming = toChatMessage(raw);
-      if (incoming.conversationId !== conversationId) return;
+      if (incoming.conversationId?.toLowerCase() !== conversationId?.toLowerCase()) return;
       upsertMessage(incoming);
 
       if (incoming.senderId && !sameUserId(incoming.senderId, currentUserIdRef.current)) {
