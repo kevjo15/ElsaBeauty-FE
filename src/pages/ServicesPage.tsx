@@ -3,6 +3,7 @@ import MainLayout from "@/components/layout/main-layout";
 import { Link } from "react-router-dom";
 import { useServicesWithImages } from "@/hooks/useServicesWithImages";
 import { Sparkles } from "lucide-react";
+import ImageWithFallback from "@/components/ImageWithFallback";
 
 const ServicesPage: React.FC = () => {
   const { services, error, loading } = useServicesWithImages();
@@ -109,11 +110,11 @@ const ServicesPage: React.FC = () => {
             className="card group bg-base-100 ring-1 ring-base-300/60 shadow-sm rounded-xl overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-transform duration-200"
           >
             <figure className="relative aspect-[16/10] overflow-hidden">
-              <img
+              <ImageWithFallback
                 src={s.imageUrl}
                 alt={s.name}
                 className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.02]"
-                loading="lazy"
+                fallbackText="Ingen bild"
               />
               <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/60 via-black/20 to-transparent text-white">
                 <div className="flex items-center justify-between gap-3 text-sm">
