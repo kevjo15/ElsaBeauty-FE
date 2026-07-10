@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from "react";
-import MainLayout from "@/components/layout/main-layout";
+import AdaptiveLayout from "@/components/layout/adaptive-layout";
 import { Link } from "react-router-dom";
-import { useServicesWithImages } from "@/hooks/useServicesWithImages";
+import { useServices } from "@/hooks/useServices";
 import { Sparkles } from "lucide-react";
 import ImageWithFallback from "@/components/ImageWithFallback";
 
 const ServicesPage: React.FC = () => {
-  const { services, error, loading } = useServicesWithImages();
+  const { services, error, loading } = useServices();
 
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("recommended");
@@ -36,7 +36,7 @@ const ServicesPage: React.FC = () => {
   }, [services, query, sort]);
 
   return (
-    <MainLayout>
+    <AdaptiveLayout>
       <section className="mb-10">
         <div className="rounded-2xl bg-gradient-to-br from-base-100 via-base-200 to-base-100 ring-1 ring-base-300/60 shadow-sm p-6 md:p-8">
           <div className="max-w-5xl mx-auto">
@@ -146,7 +146,7 @@ const ServicesPage: React.FC = () => {
           </div>
         )}
       </section>
-    </MainLayout>
+    </AdaptiveLayout>
   );
 };
 

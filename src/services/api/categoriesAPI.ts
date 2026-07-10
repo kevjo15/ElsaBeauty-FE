@@ -28,3 +28,27 @@ export const getCategoriesWithServices = async (): Promise<
     return [];
   }
 };
+
+// Admin: kategorihantering. Fel kastas vidare till anroparen.
+
+export async function createCategory(name: string): Promise<void> {
+  // Skapa-endpointen tar fältet "categoryName" (PUT tar "name").
+  await api.post(GET_ALL_CATEGORIES_URL, { categoryName: name });
+}
+
+/** Kopplar en behandling till en kategori (sätter service.CategoryId). */
+export async function linkServiceToCategory(
+  categoryId: string,
+  serviceId: string
+): Promise<void> {
+  await api.post(`${GET_ALL_CATEGORIES_URL}/${categoryId}/services/${serviceId}`);
+}
+
+export async function unlinkServiceFromCategory(
+  categoryId: string,
+  serviceId: string
+): Promise<void> {
+  await api.delete(
+    `${GET_ALL_CATEGORIES_URL}/${categoryId}/services/${serviceId}`
+  );
+}

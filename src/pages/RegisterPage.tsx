@@ -1,44 +1,44 @@
-"use client";
-
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import ModeToggle from "@/components/mode-toggle";
+import { MailCheck } from "lucide-react";
+import AuthLayout from "@/components/layout/auth-layout";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { registerUser } from "@/services/api/authService";
 
 const formSchema = z
   .object({
     firstName: z
       .string()
-      .min(2, { message: "First name must be at least 2 characters." }),
+      .min(2, { message: "Förnamnet måste vara minst 2 tecken." }),
     lastName: z
       .string()
-      .min(2, { message: "Last name must be at least 2 characters." }),
-    email: z.string().email({ message: "Invalid email address." }),
+      .min(2, { message: "Efternamnet måste vara minst 2 tecken." }),
+    email: z.string().email({ message: "Ogiltig e-postadress." }),
     phoneNumber: z
       .string()
-      .regex(/^\+?[0-9\s\-\(\)]{7,15}$/, { message: "Phone number is not valid." }),
+      .regex(/^\+?[0-9\s\-()]{7,15}$/, { message: "Ange ett giltigt telefonnummer." }),
     password: z
       .string()
-      .min(8, { message: "Password must be at least 8 characters." })
-      .regex(/[A-Z]/, { message: "Password must contain at least one uppercase letter." })
-      .regex(/[a-z]/, { message: "Password must contain at least one lowercase letter." })
-      .regex(/[0-9]/, { message: "Password must contain at least one digit." })
-      .regex(/[^a-zA-Z0-9]/, { message: "Password must contain at least one special character." }),
+      .min(8, { message: "Lösenordet måste vara minst 8 tecken." })
+      .regex(/[A-Z]/, { message: "Lösenordet måste innehålla minst en versal." })
+      .regex(/[a-z]/, { message: "Lösenordet måste innehålla minst en gemen." })
+      .regex(/[0-9]/, { message: "Lösenordet måste innehålla minst en siffra." })
+      .regex(/[^a-zA-Z0-9]/, { message: "Lösenordet måste innehålla minst ett specialtecken." }),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     path: ["confirmPassword"],
-    message: "Passwords do not match.",
+    message: "Lösenorden matchar inte.",
   });
 
 type FormValues = z.infer<typeof formSchema>;
 
 export default function RegisterPage() {
-  const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -56,42 +56,65 @@ export default function RegisterPage() {
     setServerError(null);
     try {
       await registerUser(values);
-      navigate("/login");
+      setRegisteredEmail(values.email);
     } catch (error) {
       if (error instanceof Error) {
         setServerError(error.message);
       } else {
-        setServerError("Registration failed. Please try again.");
+        setServerError("Registreringen misslyckades. Försök igen.");
       }
     }
   }
 
-  return (
-    <div className="flex flex-col items-center min-h-screen p-4">
-      <div className="ml-auto w-full max-w-md">
-        <div className="flex justify-end mb-4">
-          <ModeToggle />
+  if (registeredEmail) {
+    return (
+      <AuthLayout>
+        <div className="card bg-base-100 ring-1 ring-base-300/60 shadow-xl">
+          <div className="card-body text-center py-10">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/20">
+              <MailCheck className="h-7 w-7" />
+            </div>
+            <h2 className="card-title justify-center text-2xl">
+              Kolla din inkorg!
+            </h2>
+            <p className="mt-2 text-base-content/70">
+              Vi har skickat ett bekräftelsemejl till{" "}
+              <span className="font-medium">{registeredEmail}</span>. Klicka på
+              länken i mejlet för att aktivera ditt konto.
+            </p>
+            <p className="mt-1 text-sm text-base-content/60">
+              Inget mejl? Titta i skräpposten, eller försök logga in så kan du
+              begära ett nytt.
+            </p>
+            <Link to="/login" className="btn btn-primary mt-6 mx-auto">
+              Till inloggningen
+            </Link>
+          </div>
         </div>
-      </div>
+      </AuthLayout>
+    );
+  }
 
-      <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-        <div className="card bg-base-100 shadow-xl mx-auto max-w-sm">
-          <div className="card-body">
-            <h2 className="card-title text-2xl">Register</h2>
+  return (
+    <AuthLayout>
+      <div className="card bg-base-100 ring-1 ring-base-300/60 shadow-xl">
+        <div className="card-body">
+            <h2 className="card-title text-2xl">Skapa konto</h2>
             <p className="text-base-content">
-              Create a new account by filling out the form below.
+              Fyll i formuläret nedan för att skapa ett nytt konto.
             </p>
 
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid gap-4">
-                {/* First Name */}
+                {/* Förnamn */}
                 <div>
                   <label htmlFor="firstName" className="label">
-                    First Name
+                    Förnamn
                   </label>
                   <input
                     id="firstName"
-                    placeholder="John"
+                    placeholder="Anna"
+                    autoComplete="given-name"
                     className="input input-bordered w-full"
                     disabled={form.formState.isSubmitting}
                     {...form.register("firstName")}
@@ -103,14 +126,15 @@ export default function RegisterPage() {
                   )}
                 </div>
 
-                {/* Last Name */}
+                {/* Efternamn */}
                 <div>
                   <label htmlFor="lastName" className="label">
-                    Last Name
+                    Efternamn
                   </label>
                   <input
                     id="lastName"
-                    placeholder="Doe"
+                    placeholder="Andersson"
+                    autoComplete="family-name"
                     className="input input-bordered w-full"
                     disabled={form.formState.isSubmitting}
                     {...form.register("lastName")}
@@ -122,15 +146,15 @@ export default function RegisterPage() {
                   )}
                 </div>
 
-                {/* Email */}
+                {/* E-post */}
                 <div>
                   <label htmlFor="email" className="label">
-                    Email
+                    E-post
                   </label>
                   <input
                     id="email"
                     type="email"
-                    placeholder="johndoe@mail.com"
+                    placeholder="namn@exempel.se"
                     autoComplete="email"
                     className="input input-bordered w-full"
                     disabled={form.formState.isSubmitting}
@@ -143,10 +167,10 @@ export default function RegisterPage() {
                   )}
                 </div>
 
-                {/* Phone */}
+                {/* Telefon */}
                 <div>
                   <label htmlFor="phoneNumber" className="label">
-                    Phone Number
+                    Telefonnummer
                   </label>
                   <input
                     id="phoneNumber"
@@ -164,10 +188,10 @@ export default function RegisterPage() {
                   )}
                 </div>
 
-                {/* Password */}
+                {/* Lösenord */}
                 <div>
                   <label htmlFor="password" className="label">
-                    Password
+                    Lösenord
                   </label>
                   <input
                     id="password"
@@ -184,10 +208,10 @@ export default function RegisterPage() {
                   )}
                 </div>
 
-                {/* Confirm Password */}
+                {/* Bekräfta lösenord */}
                 <div>
                   <label htmlFor="confirmPassword" className="label">
-                    Confirm Password
+                    Bekräfta lösenord
                   </label>
                   <input
                     id="confirmPassword"
@@ -204,7 +228,7 @@ export default function RegisterPage() {
                   )}
                 </div>
 
-                {/* Server error */}
+                {/* Serverfel */}
                 {serverError && (
                   <p className="text-error text-sm text-center">{serverError}</p>
                 )}
@@ -217,24 +241,37 @@ export default function RegisterPage() {
                   {form.formState.isSubmitting ? (
                     <>
                       <span className="loading loading-spinner loading-sm" />
-                      Registering...
+                      Skapar konto...
                     </>
                   ) : (
-                    "Register"
+                    "Skapa konto"
                   )}
                 </button>
               </div>
             </form>
 
-            <div className="mt-4 text-center text-sm">
-              Already have an account?{" "}
-              <Link to="/login" className="underline">
-                Login
-              </Link>
-            </div>
+          <GoogleSignInButton />
+
+          <p className="mt-4 text-center text-xs text-base-content/60">
+            Genom att skapa ett konto godkänner du våra{" "}
+            <Link to="/terms" className="link">
+              användarvillkor
+            </Link>{" "}
+            och vår{" "}
+            <Link to="/privacy" className="link">
+              integritetspolicy
+            </Link>
+            .
+          </p>
+
+          <div className="mt-4 text-center text-sm">
+            Har du redan ett konto?{" "}
+            <Link to="/login" className="underline">
+              Logga in
+            </Link>
           </div>
         </div>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

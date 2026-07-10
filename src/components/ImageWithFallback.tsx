@@ -7,6 +7,8 @@ type ImageWithFallbackProps = {
   className?: string;
   loading?: "lazy" | "eager";
   fallbackText?: string;
+  width?: number;
+  height?: number;
 };
 
 const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
@@ -15,6 +17,8 @@ const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
   className = "",
   loading = "lazy",
   fallbackText = "Bild kunde inte laddas",
+  width,
+  height,
 }) => {
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -41,6 +45,8 @@ const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
         src={src}
         alt={alt}
         loading={loading}
+        width={width}
+        height={height}
         onLoad={() => setIsLoaded(true)}
         onError={() => setHasError(true)}
         className={`${className} transition-opacity duration-300 ${

@@ -1,9 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { jwtDecode } from "jwt-decode";
-import { loginUser, logoutUser, tryRestoreAuth } from "./authService";
+import {
+  loginUser,
+  loginWithGoogle as loginWithGoogleService,
+  logoutUser,
+  tryRestoreAuth,
+} from "./authService";
 import { api, resetAuthExpiredState, subscribeToAuthExpired } from "./apiService";
 import { getAccessToken, clearAccessToken } from "./tokenStore";
-import { ME_URL, USER_NAME_URL } from "./apiUrl";
+import { ME_URL } from "./apiUrl";
 
 /**
  * Interface for JWT payload.
@@ -25,6 +30,8 @@ export interface User {
   role?: string;
   firstName?: string;
   lastName?: string;
+  phoneNumber?: string;
+  avatarUrl?: string;
 }
 
 /**
@@ -41,7 +48,11 @@ interface AuthState {
 interface AuthContextProps extends AuthState {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  /** Loggar in med ett Google ID-token (Google Identity Services). */
+  loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Hämtar om användarprofilen, t.ex. efter en profiluppdatering. */
+  refreshUser: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -79,28 +90,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Fetch user info from /me endpoint
+      // /api/me returnerar hela profilen i ett anrop
       const response = await api.get(ME_URL);
 
       const data = response.data || {};
-      const userId =
-        data.userId || data.UserId || data.id || data.Id || decodedSub;
-      const email = data.email || data.Email;
-      const role = data.role || data.Role || decodedRole;
-
-      // Try to fetch user's name
-      let firstName: string | undefined;
-      let lastName: string | undefined;
-
-      try {
-        const nameResponse = await api.get(USER_NAME_URL);
-        if (nameResponse.data) {
-          firstName = nameResponse.data.firstName;
-          lastName = nameResponse.data.lastName;
-        }
-      } catch {
-        // Name endpoint is optional, ignore errors
-      }
+      const userId = data.userId || data.id || decodedSub;
+      const email = data.email;
+      const role = data.role || decodedRole;
 
       setAuthState({
         isAuthenticated: true,
@@ -108,8 +104,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: userId,
           email,
           role,
-          firstName,
-          lastName,
+          firstName: data.firstName || undefined,
+          lastName: data.lastName || undefined,
+          phoneNumber: data.phoneNumber || undefined,
+          avatarUrl: data.avatarUrl || undefined,
         },
       });
 
@@ -169,6 +167,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchUser]);
 
   /**
+   * Google-login: samma efterflöde som lösenordslogin.
+   */
+  const loginWithGoogle = useCallback(async (credential: string) => {
+    try {
+      resetAuthExpiredState();
+      await loginWithGoogleService(credential);
+      await fetchUser();
+    } catch (error) {
+      console.error("Google login failed:", error);
+      throw error;
+    }
+  }, [fetchUser]);
+
+  /**
    * Logout handler.
    */
   const logout = useCallback(async () => {
@@ -185,7 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ ...authState, isLoading, login, logout }}
+      value={{ ...authState, isLoading, login, loginWithGoogle, logout, refreshUser: fetchUser }}
     >
       {children}
     </AuthContext.Provider>

@@ -370,10 +370,10 @@ export const BookingChat: React.FC<BookingChatProps> = ({ booking }) => {
         className="flex-1 overflow-y-auto px-4 py-3 bg-base-200/40"
       >
         {isLoadingHistory && (
-          <div className="text-sm text-base-content/60">Loading history...</div>
+          <div className="text-sm text-base-content/60">Laddar meddelanden...</div>
         )}
         {!isLoadingHistory && sortedMessages.length === 0 && (
-          <div className="text-sm text-base-content/60">No messages yet.</div>
+          <div className="text-sm text-base-content/60">Inga meddelanden ännu.</div>
         )}
 
         {sortedMessages.map((m, index) => {
