@@ -16,7 +16,7 @@ import TimeSlotSelector from "@/components/booking/TimeSlotSelector";
 import BookingSummary from "@/components/booking/BookingSummary";
 import DateSelector from "@/components/booking/DateSelector";
 import BookingConfirmationModal from "@/components/booking/BookingConfirmationModal";
-import { useServicesWithImages } from "@/hooks/useServicesWithImages";
+import { useServices } from "@/hooks/useServices";
 import { useTimeSlots } from "@/hooks/useTimeSlots";
 import { CheckCircle2, Clock, X } from "lucide-react";
 import { isPast, startOfDay } from "date-fns";
@@ -96,7 +96,7 @@ const BookingPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { services, error: servicesError } = useServicesWithImages();
+  const { services, error: servicesError } = useServices();
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);

@@ -15,6 +15,8 @@ import { sv } from "date-fns/locale";
 import { MessageCircle, User } from "lucide-react";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import ScheduleSection from "@/components/schedule/ScheduleSection";
+import BookingsReport from "@/components/admin/BookingsReport";
+import ServicesManager from "@/components/admin/ServicesManager";
 
 // Helper to get customer display name
 const customerName = (b: BookingResponse): string => {
@@ -274,6 +276,8 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         </section>
+
+        <BookingsReport />
 
         <section className="card bg-base-100 border border-base-300 shadow-sm rounded-xl">
           <div className="card-body">
@@ -591,6 +595,8 @@ const AdminDashboard: React.FC = () => {
             )}
           </div>
         </section>
+
+        <ServicesManager />
 
         {isEmployee && (
           <section className="card bg-base-100 shadow-sm border border-base-300 rounded-xl">

@@ -1,10 +1,62 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="sv">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="ElsaBeauty" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
+    <title>ElsaBeauty – Medicinsk skönhetsvård i Stockholm</title>
+    <meta
+      name="description"
+      content="ElsaBeauty erbjuder medicinsk hudvård och estetiska behandlingar av legitimerad distriktssköterska i Stockholm. Boka fillers, botox och microneedling online."
+    />
+    <meta property="og:title" content="ElsaBeauty – Medicinsk skönhetsvård i Stockholm" />
+    <meta
+      property="og:description"
+      content="Boka fillers, botox och microneedling hos legitimerad distriktssköterska."
+    />
+    <meta name="theme-color" content="#faf6f0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // FOUC-guard: sätt temat innan React hunnit montera.
+      // Håll i synk med theme-provider.tsx (LIGHT_THEME/DARK_THEME/DARK_THEMES/KNOWN_THEMES).
+      (function () {
+        var LIGHT = "elsabeauty";
+        var DARK = "elsabeauty-night";
+        var DARKS = [DARK, "salon-noir-gold", "dracula"];
+        var KNOWN = [
+          "elsabeauty", "elsabeauty-night", "salon-rose", "salon-emerald",
+          "salon-noir-gold", "salon-sand", "salon-blush", "salon-olive",
+          "salon-ivory-gold"
+        ];
+        var stored = null;
+        try {
+          stored = localStorage.getItem("vite-ui-theme");
+        } catch (e) {
+          /* localStorage kan vara blockerad — kör vidare med systemläge */
+        }
+        var mode =
+          stored && stored !== "system"
+            ? (DARKS.indexOf(stored) !== -1 ? "dark" : "light")
+            : window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+        var theme =
+          stored && KNOWN.indexOf(stored) !== -1
+            ? stored
+            : mode === "dark" ? DARK : LIGHT;
+        var root = document.documentElement;
+        root.setAttribute("data-theme", theme);
+        root.classList.add(mode);
+        root.style.colorScheme = mode;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

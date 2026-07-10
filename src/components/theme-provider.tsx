@@ -1,55 +1,29 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
+/** Egna teman definierade i src/index.css */
 type ThemeName =
+  | "elsabeauty"
+  | "elsabeauty-night"
   | "salon-rose"
-  | "salon-noir-gold"
   | "salon-emerald"
+  | "salon-noir-gold"
   | "salon-sand"
   | "salon-blush"
   | "salon-olive"
-  | "salon-ivory-gold"
-  | "light"
-  | "dark"
-  | "cupcake"
-  | "bumblebee"
-  | "emerald"
-  | "corporate"
-  | "synthwave"
-  | "retro"
-  | "cyberpunk"
-  | "valentine"
-  | "halloween"
-  | "garden"
-  | "forest"
-  | "aqua"
-  | "lofi"
-  | "pastel"
-  | "fantasy"
-  | "wireframe"
-  | "black"
-  | "luxury"
-  | "dracula"
-  | "cmyk"
-  | "autumn"
-  | "business"
-  | "acid"
-  | "lemonade"
-  | "night"
-  | "coffee"
-  | "winter"
-  | "dim"
-  | "nord"
-  | "sunset"
-  | "caramellatte"
-  | "abyss"
-  | "silk";
+  | "salon-ivory-gold";
 
 type Mode = "light" | "dark";
 type Theme = ThemeName | "system";
 
-/** VÄLJ HÄR vilka teman som ska vara light/dark */
-export const LIGHT_THEME: ThemeName = "salon-blush"; // <- ändra t.ex. till "salon-sand"
-export const DARK_THEME: ThemeName = "dracula"; // <- ändra t.ex. till "salon-emerald"
+/**
+ * Varumärkesparet som lampan i navbaren växlar mellan.
+ * Håll i synk med FOUC-guarden i index.html.
+ */
+export const LIGHT_THEME: ThemeName = "elsabeauty";
+export const DARK_THEME: ThemeName = "elsabeauty-night";
+
+/** Teman som räknas som mörka (inkl. äldre sparade värden i localStorage). */
+const DARK_THEMES = new Set<string>([DARK_THEME, "salon-noir-gold", "dracula"]);
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -69,18 +43,30 @@ const themeMap: Record<Mode, ThemeName> = {
   dark: DARK_THEME,
 };
 
+const KNOWN_THEMES = new Set<string>([
+  "elsabeauty",
+  "elsabeauty-night",
+  "salon-rose",
+  "salon-emerald",
+  "salon-noir-gold",
+  "salon-sand",
+  "salon-blush",
+  "salon-olive",
+  "salon-ivory-gold",
+]);
+
 function toMode(theme: Theme): Mode {
   if (theme === "system") {
     return window.matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
       : "light";
   }
-  return theme === DARK_THEME ? "dark" : "light";
+  return DARK_THEMES.has(theme) ? "dark" : "light";
 }
 
 export function ThemeProvider({
   children,
-  defaultTheme = LIGHT_THEME, // <- default vid första laddning
+  defaultTheme = "system",
   storageKey = "vite-ui-theme",
   ...props
 }: ThemeProviderProps) {
@@ -90,7 +76,13 @@ export function ThemeProvider({
 
   const { effectiveTheme, mode } = useMemo(() => {
     const m = toMode(theme);
-    return { effectiveTheme: themeMap[m], mode: m };
+    // Okända/legacy-värden (t.ex. borttagna stock-teman) faller tillbaka
+    // på varumärkesparet utifrån sitt läge.
+    const resolved =
+      theme !== "system" && KNOWN_THEMES.has(theme)
+        ? (theme as ThemeName)
+        : themeMap[m];
+    return { effectiveTheme: resolved, mode: m };
   }, [theme]);
 
   useEffect(() => {

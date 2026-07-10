@@ -24,7 +24,7 @@ const AboutElsa: React.FC = () => {
     <section id="about" className="py-20 bg-base-100">
       <div className="container mx-auto px-4">
         <div className="text-center max-w-3xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+          <h2 className="font-display text-3xl md:text-4xl font-semibold tracking-tight">
             Om Elsa
           </h2>
           <p className="mt-2 text-base-content/70">
