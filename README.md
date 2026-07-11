@@ -138,14 +138,15 @@ Create a `.env` file in the project root:
 ```bash
 VITE_API_BASE_URL=/api
 VITE_SIGNALR_BASE_URL=http://localhost:5011
-VITE_STORAGE_BASE_URL=http://127.0.0.1:10000/devstoreaccount1
 ```
 
 | Variable | Purpose |
 |----------|---------|
 | `VITE_API_BASE_URL` | Base path for REST calls (proxied to backend in dev) |
 | `VITE_SIGNALR_BASE_URL` | SignalR hub origin |
-| `VITE_STORAGE_BASE_URL` | Blob storage origin for direct image URLs (Azurite locally) |
+
+All images are served through the API as short-lived SAS URLs — the frontend never
+talks to blob storage directly.
 
 ### 3. Run
 

@@ -7,6 +7,19 @@ export interface Service {
   imageUrl: string;
 }
 
+/**
+ * Body för skapa/uppdatera behandling. duration är en .NET TimeSpan-sträng
+ * ("HH:mm:ss"). imageUrl ignoreras av API:et (bilden hanteras via
+ * uploadServiceImage) men fältet ingår i DTO-kontraktet — skicka "".
+ */
+export interface ServiceInput {
+  name: string;
+  description: string;
+  duration: string;
+  price: number;
+  imageUrl: string;
+}
+
 export interface Category {
   name: string;
 }
@@ -79,9 +92,40 @@ export interface BookingResponse {
   service?: { id: string; name: string; description?: string; duration?: string; price?: number };
 }
 
-export interface UserNameDTO {
+export interface BookingsReportRow {
+  startTime: string;
+  serviceName: string;
+  price: number;
+  customerName: string;
+  employeeName: string;
+  isCancelled: boolean;
+}
+
+export interface BookingsReportServiceLine {
+  serviceName: string;
+  count: number;
+  revenue: number;
+}
+
+export interface BookingsReport {
+  from: string;
+  to: string;
+  totalBookings: number;
+  totalRevenue: number;
+  cancelledBookings: number;
+  perService: BookingsReportServiceLine[];
+  rows: BookingsReportRow[];
+}
+
+export interface UpdateProfileRequest {
   firstName: string;
   lastName: string;
+  phoneNumber: string;
+}
+
+export interface UpdatePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
 }
 
 export interface ChatMessage {

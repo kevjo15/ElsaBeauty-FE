@@ -59,7 +59,7 @@ const ChatPage: React.FC = () => {
         } else if (!cancelled && !res) {
           setLoadError("Kunde inte hämta bokningen.");
         }
-      } catch (err) {
+      } catch {
         if (!cancelled) setLoadError("Kunde inte hämta bokningen.");
       } finally {
         if (!cancelled) setLoading(false);
@@ -75,7 +75,7 @@ const ChatPage: React.FC = () => {
     return (
       <MainLayout>
         <div className="max-w-3xl mx-auto px-4 py-12 space-y-4">
-          <h1 className="text-2xl font-bold">Chat</h1>
+          <h1 className="text-2xl font-bold">Chatt</h1>
           <p className="text-base-content/70">
             {loading
               ? "Laddar bokning..."

@@ -51,15 +51,21 @@ export const SIGNALR_BASE_URL = resolveSignalRBaseUrl();
 // Specific endpoints
 export const REGISTER_URL = `${API_BASE_URL}/auth/register`;
 export const LOGIN_URL = `${API_BASE_URL}/auth/login`;
+export const GOOGLE_LOGIN_URL = `${API_BASE_URL}/auth/google`;
+export const FORGOT_PASSWORD_URL = `${API_BASE_URL}/auth/forgot-password`;
+export const RESET_PASSWORD_URL = `${API_BASE_URL}/auth/reset-password`;
+export const CONFIRM_EMAIL_URL = `${API_BASE_URL}/auth/confirm-email`;
+export const RESEND_CONFIRMATION_URL = `${API_BASE_URL}/auth/resend-confirmation`;
 export const REVOKE_REFRESH_TOKEN_URL = `${API_BASE_URL}/auth/logout`;
 export const REFRESH_TOKEN_URL = `${API_BASE_URL}/auth/refresh`;
 
 export const ME_URL = `${API_BASE_URL}/me`;
-export const USER_NAME_URL = `${API_BASE_URL}/me/name`;
+export const UPDATE_PROFILE_URL = `${API_BASE_URL}/me/profile`;
+export const UPDATE_PASSWORD_URL = `${API_BASE_URL}/me/password`;
+export const AVATAR_URL = `${API_BASE_URL}/me/avatar`;
 
-// Service endpoints
+// Service endpoints (bild-URL:er kommer alltid färdigsignerade från API:et)
 export const GET_ALL_SERVICES_URL = `${API_BASE_URL}/services`;
-export const GET_ALL_SERVICES_WITH_SAS_URL = `${API_BASE_URL}/services/with-sas`;
 
 // Category endpoints
 export const GET_ALL_CATEGORIES_URL = `${API_BASE_URL}/categories`;

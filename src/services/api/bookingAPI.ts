@@ -14,7 +14,44 @@ import {
   DaySlots,
   BookingRequest,
   BookingResponse,
+  BookingsReport,
 } from "./types";
+
+/**
+ * Hämtar bokningsrapporten (endast admin). from/to är "yyyy-MM-dd".
+ */
+export async function getBookingsReport(
+  from: string,
+  to: string
+): Promise<BookingsReport> {
+  const response = await api.get<BookingsReport>(
+    `${API_BASE_URL}/bookings/report`,
+    { params: { from, to } }
+  );
+  return response.data;
+}
+
+/**
+ * Laddar ner rapporten som CSV (endast admin) och triggar fil-nedladdning.
+ */
+export async function downloadBookingsReportCsv(
+  from: string,
+  to: string
+): Promise<void> {
+  const response = await api.get<Blob>(`${API_BASE_URL}/bookings/report/csv`, {
+    params: { from, to },
+    responseType: "blob",
+  });
+
+  const url = URL.createObjectURL(response.data);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `bokningar_${from}_${to}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
 
 /**
  * Gets available time slots for a service on a specific date.

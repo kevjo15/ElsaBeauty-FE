@@ -2,6 +2,7 @@ import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/services/api/authContext";
 import ModeToggle from "@/components/mode-toggle";
+import Logo from "@/components/Logo";
 import Footer from "@/components/layout/Footer";
 import NotificationCenter from "@/components/NotificationCenter";
 import { Menu, Home, Scissors, Calendar, LogOut, Shield, Briefcase } from "lucide-react";
@@ -94,10 +95,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </div>
 
           <button
-            className="btn btn-ghost text-xl font-semibold"
+            className="btn btn-ghost px-2"
             onClick={() => navigate("/dashboard")}
+            aria-label="Till din översikt"
           >
-            ElsaBeauty
+            <Logo markSize={24} />
           </button>
         </div>
 
@@ -145,11 +147,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               role="button"
               className="btn btn-circle avatar placeholder"
             >
-              <div className="bg-gray-300 text-gray-800 rounded-full w-10 h-10 flex items-center justify-center pt-2">
-                <span className="text-xl leading-none">
-                  {user?.firstName?.charAt(0) || "U"}
-                </span>
-              </div>
+              {user?.avatarUrl ? (
+                <div className="w-10 rounded-full ring-1 ring-primary/20">
+                  <img src={user.avatarUrl} alt="Din profilbild" />
+                </div>
+              ) : (
+                <div className="bg-primary/15 text-primary rounded-full w-10 h-10 flex items-center justify-center pt-2 ring-1 ring-primary/20">
+                  <span className="text-xl leading-none">
+                    {user?.firstName?.charAt(0) || "U"}
+                  </span>
+                </div>
+              )}
             </div>
             <ul
               tabIndex={0}
@@ -180,8 +188,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <main className="flex-1 p-6">{children}</main>
+      {/* Main Content — tonad yta i ljust läge så korten (base-100) lyfter;
+          mörkt läge återgår till ren bas */}
+      <main className="flex-1 p-6 bg-base-200/40 dark:bg-transparent">{children}</main>
 
       {/* Footer */}
       <Footer />

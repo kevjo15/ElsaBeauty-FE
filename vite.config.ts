@@ -2,6 +2,7 @@ import path from "path";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { VitePWA } from "vite-plugin-pwa";
 
 function resolveProxyTarget(apiBaseUrl: string | undefined, localProxyTarget: string | undefined): string {
   if (localProxyTarget) {
@@ -31,7 +32,54 @@ export default defineConfig(({ mode }) => {
   );
 
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      VitePWA({
+        registerType: "autoUpdate",
+        includeAssets: ["favicon.svg", "apple-touch-icon.png"],
+        manifest: {
+          name: "ElsaBeauty",
+          short_name: "ElsaBeauty",
+          description:
+            "Boka medicinsk hudvård och estetiska behandlingar hos ElsaBeauty.",
+          lang: "sv",
+          theme_color: "#a34a63",
+          background_color: "#faf4f1",
+          display: "standalone",
+          start_url: "/",
+          scope: "/",
+          icons: [
+            {
+              src: "pwa-192x192.png",
+              sizes: "192x192",
+              type: "image/png",
+            },
+            {
+              src: "pwa-512x512.png",
+              sizes: "512x512",
+              type: "image/png",
+            },
+            {
+              src: "pwa-maskable-512x512.png",
+              sizes: "512x512",
+              type: "image/png",
+              purpose: "maskable",
+            },
+          ],
+        },
+        workbox: {
+          // Bara statiska app-skalet cachas. API-anrop och SAS-bilder går
+          // aldrig via service workern (annars riskerar man utgångna SAS/data).
+          globPatterns: ["**/*.{js,css,html,svg,woff2}"],
+          navigateFallbackDenylist: [/^\/api/, /^\/chatHub/, /^\/notificationHub/],
+          cleanupOutdatedCaches: true,
+        },
+        devOptions: {
+          enabled: false,
+        },
+      }),
+    ],
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),

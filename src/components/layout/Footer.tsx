@@ -1,20 +1,17 @@
 import React from "react";
-import { Sparkles, MapPin, Mail, Clock } from "lucide-react";
+import { Link } from "react-router-dom";
+import { MapPin, Mail, Clock } from "lucide-react";
+import Logo from "@/components/Logo";
 
 const Footer: React.FC = () => {
   return (
-    <footer className="bg-base-100 border-t border-base-300/60">
+    <footer id="contact" className="bg-base-100 border-t border-base-300/60">
       <div className="container mx-auto px-4">
         {/* Thinner footer with 4 columns */}
         <div className="py-4 grid grid-cols-1 md:grid-cols-4 gap-6 text-base-content text-sm">
           {/* Brand/intro */}
           <div>
-            <div className="flex items-center gap-2 text-lg font-semibold">
-              <span className="rounded-full p-1.5 bg-primary/10 text-primary ring-1 ring-primary/20">
-                <Sparkles className="h-5 w-5" />
-              </span>
-              <span className="text-primary">ElsaBeauty</span>
-            </div>
+            <Logo markSize={24} />
             <p className="mt-2 text-base-content/70 max-w-sm">
               Medicinsk hudvård med omtanke. Legitimerad distriktssköterska med
               flera års erfarenhet.
@@ -59,8 +56,18 @@ const Footer: React.FC = () => {
         </div>
 
         {/* Bottom line thinner */}
-        <div className="py-2 border-t border-base-300/60 text-center text-xs text-base-content/60">
-          © 2025 ElsaBeauty. Alla rättigheter förbehållna.
+        <div className="py-2 border-t border-base-300/60 flex flex-col sm:flex-row items-center justify-center gap-x-4 gap-y-1 text-center text-xs text-base-content/60">
+          <span>
+            © {new Date().getFullYear()} ElsaBeauty. Alla rättigheter förbehållna.
+          </span>
+          <span className="flex items-center gap-3">
+            <Link to="/privacy" className="link link-hover">
+              Integritetspolicy
+            </Link>
+            <Link to="/terms" className="link link-hover">
+              Användarvillkor
+            </Link>
+          </span>
         </div>
       </div>
     </footer>

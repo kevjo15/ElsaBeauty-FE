@@ -3,7 +3,7 @@ import MainLayout from "@/components/layout/main-layout";
 import { useAuth } from "@/services/api/authContext";
 import { useNavigate } from "react-router-dom";
 import { getMyBookings, type BookingResponse } from "@/services/api";
-import { useServicesWithImages } from "@/hooks/useServicesWithImages";
+import { useServices } from "@/hooks/useServices";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import {
   Calendar,
@@ -40,7 +40,7 @@ const ChatButton: React.FC<{ booking: BookingResponse; userId: string }> = ({ bo
 const CustomerDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { services } = useServicesWithImages();
+  const { services } = useServices();
 
   const [bookings, setBookings] = useState<BookingResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,8 +89,8 @@ const CustomerDashboard: React.FC = () => {
     <MainLayout>
       <div className="container mx-auto max-w-5xl px-4 py-6">
         {/* Välkomst */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold">
+        <div className="mb-8 rounded-2xl bg-gradient-to-r from-primary/10 via-base-100 to-accent/10 ring-1 ring-base-300/60 p-6 md:p-8">
+          <h1 className="text-3xl font-semibold tracking-tight">
             Välkommen{user?.firstName ? `, ${user.firstName}` : ""}!
           </h1>
           <p className="text-base-content/60 mt-1">
@@ -106,7 +106,7 @@ const CustomerDashboard: React.FC = () => {
           </h2>
 
           {loading ? (
-            <div className="card bg-base-100 shadow">
+            <div className="card bg-base-100 ring-1 ring-base-300/60 shadow">
               <div className="card-body">
                 <div className="flex gap-4 animate-pulse">
                   <div className="w-16 h-16 bg-base-300 rounded-lg"></div>
@@ -120,7 +120,7 @@ const CustomerDashboard: React.FC = () => {
           ) : error ? (
             <div className="alert alert-error">{error}</div>
           ) : nextBooking ? (
-            <div className="card bg-base-100 shadow hover:shadow-md transition-shadow">
+            <div className="card bg-base-100 ring-1 ring-base-300/60 shadow hover:shadow-md transition-shadow">
               <div className="card-body">
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex items-center justify-center w-16 h-16 bg-primary/10 rounded-lg shrink-0">
@@ -179,7 +179,7 @@ const CustomerDashboard: React.FC = () => {
           <h2 className="text-lg font-semibold mb-4">Snabblänkar</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <button
-              className="card bg-base-100 shadow hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer"
+              className="card bg-base-100 ring-1 ring-base-300/60 shadow hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer"
               onClick={() => navigate("/bookings")}
             >
               <div className="card-body items-center text-center py-6">
@@ -194,7 +194,7 @@ const CustomerDashboard: React.FC = () => {
             </button>
 
             <button
-              className="card bg-base-100 shadow hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer"
+              className="card bg-base-100 ring-1 ring-base-300/60 shadow hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer"
               onClick={() => navigate("/bookings/history")}
             >
               <div className="card-body items-center text-center py-6">
@@ -209,7 +209,7 @@ const CustomerDashboard: React.FC = () => {
             </button>
 
             <button
-              className="card bg-base-100 shadow hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer"
+              className="card bg-base-100 ring-1 ring-base-300/60 shadow hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer"
               onClick={() => navigate("/services")}
             >
               <div className="card-body items-center text-center py-6">
@@ -236,7 +236,7 @@ const CustomerDashboard: React.FC = () => {
               {upcomingBookings.slice(1, 4).map((booking) => (
                 <div
                   key={booking.id}
-                  className="card bg-base-100 shadow-sm hover:shadow transition-shadow cursor-pointer"
+                  className="card bg-base-100 ring-1 ring-base-300/60 shadow-sm hover:shadow transition-shadow cursor-pointer"
                   onClick={() => navigate("/bookings/history")}
                 >
                   <div className="card-body py-4">
