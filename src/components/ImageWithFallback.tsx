@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ImageOff } from "lucide-react";
 
 type ImageWithFallbackProps = {
@@ -7,6 +7,8 @@ type ImageWithFallbackProps = {
   className?: string;
   loading?: "lazy" | "eager";
   fallbackText?: string;
+  width?: number;
+  height?: number;
 };
 
 const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
@@ -15,9 +17,18 @@ const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
   className = "",
   loading = "lazy",
   fallbackText = "Bild kunde inte laddas",
+  width,
+  height,
 }) => {
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // Nollställ vid ny källa — annars fastnar en tidigare felad bild i fallback
+  // även när en ny giltig src ges (t.ex. byt bild i admin, eller ny SAS-URL).
+  useEffect(() => {
+    setHasError(false);
+    setIsLoaded(false);
+  }, [src]);
 
   if (!src || hasError) {
     return (
@@ -41,6 +52,8 @@ const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
         src={src}
         alt={alt}
         loading={loading}
+        width={width}
+        height={height}
         onLoad={() => setIsLoaded(true)}
         onError={() => setHasError(true)}
         className={`${className} transition-opacity duration-300 ${

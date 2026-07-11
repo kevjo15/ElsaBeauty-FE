@@ -4,6 +4,7 @@ import { getAllServices, type Service } from "@/services/api";
 export const useServices = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -12,12 +13,14 @@ export const useServices = () => {
         setServices(servicesData);
       } catch (error) {
         console.error("Error fetching services:", error);
-        setError("Failed to load services. Please try again later.");
+        setError("Kunde inte ladda behandlingarna. Försök igen senare.");
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchServices();
   }, []);
 
-  return { services, error };
+  return { services, error, loading };
 };

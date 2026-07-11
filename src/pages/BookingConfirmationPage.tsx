@@ -4,13 +4,13 @@ import MainLayout from "@/components/layout/main-layout";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { getBookingById, type BookingResponse } from "@/services/api";
-import { useServicesWithImages } from "@/hooks/useServicesWithImages";
+import { useServices } from "@/hooks/useServices";
 import { CheckCircle2, Calendar, Clock, CreditCard, User } from "lucide-react";
 
 const BookingConfirmationPage: React.FC = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
   const location = useLocation();
-  const { services } = useServicesWithImages();
+  const { services } = useServices();
 
   const stateBookingDetails = location.state?.bookingDetails;
 

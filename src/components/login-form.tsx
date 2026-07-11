@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/services/api/authContext";
-import { useNavigate } from "react-router-dom";
+import { resendConfirmation } from "@/services/api/authService";
+import { Link, useNavigate } from "react-router-dom";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 
 const DEMO_ACCOUNTS = [
   { label: "Admin", email: "admin@elsabeauty.se", password: "Password123!" },
@@ -16,6 +19,29 @@ export function LoginForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [showResend, setShowResend] = useState(false);
+  const [resending, setResending] = useState(false);
+
+  const handleLoginError = (err: unknown) => {
+    const message =
+      err instanceof Error ? err.message : "Ett oväntat fel inträffade";
+    setError(message);
+    setShowResend(message.includes("inte bekräftad"));
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    try {
+      await resendConfirmation(email);
+      toast.success("Nytt bekräftelsemejl skickat — kolla din inkorg");
+      setShowResend(false);
+      setError(null);
+    } catch {
+      toast.error("Kunde inte skicka mejlet. Försök igen.");
+    } finally {
+      setResending(false);
+    }
+  };
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -50,31 +76,27 @@ export function LoginForm({
       navigate("/home");
     } catch (err) {
       setLoading(false);
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("An unexpected error occurred");
-      }
+      handleLoginError(err);
     }
   };
 
   return (
     <div className={`flex flex-col gap-6 ${className}`} {...props}>
-      <div className="card bg-base-100 shadow-xl">
+      <div className="card bg-base-100 ring-1 ring-base-300/60 shadow-xl">
         <div className="card-body">
-          <h2 className="card-title text-2xl">Login</h2>
-          <p>Enter your email below to login to your account</p>
+          <h2 className="card-title text-2xl">Logga in</h2>
+          <p>Ange din e-postadress för att logga in på ditt konto</p>
           <form onSubmit={handleSubmit}>
             <div className="flex flex-col gap-6">
               {/* Email Field */}
               <div className="form-control w-full">
                 <label htmlFor="email" className="label">
-                  <span className="label-text">Email</span>
+                  <span className="label-text">E-post</span>
                 </label>
                 <input
                   id="email"
                   type="email"
-                  placeholder="m@example.com"
+                  placeholder="namn@exempel.se"
                   className="input input-bordered w-full"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -84,16 +106,16 @@ export function LoginForm({
 
               {/* Password Field */}
               <div className="form-control w-full">
-                <div className="flex items-center">
+                <div className="flex items-center justify-between">
                   <label htmlFor="password" className="label">
-                    <span className="label-text">Password</span>
+                    <span className="label-text">Lösenord</span>
                   </label>
-                  <a
-                    href="#"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm underline-offset-4 hover:underline"
                   >
-                    Forgot your password?
-                  </a>
+                    Glömt lösenordet?
+                  </Link>
                 </div>
                 <input
                   id="password"
@@ -110,32 +132,44 @@ export function LoginForm({
                 <p className="text-sm text-error text-center">{error}</p>
               )}
 
+              {/* Obekräftad adress: erbjud nytt bekräftelsemejl */}
+              {showResend && (
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={handleResend}
+                  disabled={resending}
+                >
+                  {resending ? (
+                    <span className="loading loading-spinner loading-xs" />
+                  ) : null}
+                  Skicka nytt bekräftelsemejl
+                </button>
+              )}
+
               {/* Login Button */}
               <button
                 type="submit"
                 className="btn btn-primary w-full"
                 disabled={loading}
               >
-                {loading ? "Logging in..." : "Login"}
+                {loading ? "Loggar in..." : "Logga in"}
               </button>
 
-              {/* Google Login Button */}
-              <button type="button" className="btn btn-outline w-full">
-                Login with Google
-              </button>
+              <GoogleSignInButton />
             </div>
 
             {/* Signup Link */}
             <div className="mt-4 text-center text-sm">
-              Don't have an account?{" "}
-              <a href="#" className="underline underline-offset-4">
-                Sign up
-              </a>
+              Har du inget konto?{" "}
+              <Link to="/register" className="underline underline-offset-4">
+                Registrera dig
+              </Link>
             </div>
           </form>
 
           {/* Demo accounts */}
-          <div className="divider text-xs text-base-content/50">Try a demo account</div>
+          <div className="divider text-xs text-base-content/50">Testa med demokonto</div>
           <div className="flex gap-2 justify-center">
             {DEMO_ACCOUNTS.map((account) => (
               <button

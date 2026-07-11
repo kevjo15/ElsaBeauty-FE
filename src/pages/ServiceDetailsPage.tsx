@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
-import MainLayout from "@/components/layout/main-layout";
+import AdaptiveLayout from "@/components/layout/adaptive-layout";
 import { useParams, Link } from "react-router-dom";
-import { useServicesWithImages } from "@/hooks/useServicesWithImages";
+import { useServices } from "@/hooks/useServices";
 import {
   ArrowLeft,
   Calendar,
@@ -16,7 +16,7 @@ import {
 
 const ServiceDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { services, error } = useServicesWithImages();
+  const { services, error } = useServices();
 
   const service = useMemo(
     () => services.find((s) => s.id === id),
@@ -56,7 +56,7 @@ const ServiceDetailsPage: React.FC = () => {
   };
 
   return (
-    <MainLayout>
+    <AdaptiveLayout>
       <div className="container mx-auto px-4">
         <div className="mb-4 max-w-6xl mx-auto">
           <Link to="/services" className="btn btn-ghost btn-sm">
@@ -297,7 +297,7 @@ const ServiceDetailsPage: React.FC = () => {
           </section>
         )}
       </div>
-    </MainLayout>
+    </AdaptiveLayout>
   );
 };
 

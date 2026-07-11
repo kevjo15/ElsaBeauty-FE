@@ -16,7 +16,7 @@ import {
   getMyBookings,
   type BookingResponse,
 } from "@/services/api";
-import { useServicesWithImages } from "@/hooks/useServicesWithImages";
+import { useServices } from "@/hooks/useServices";
 import {
   differenceInDays,
   format,
@@ -66,7 +66,7 @@ const BookingsHistoryPage: React.FC = () => {
   const [err, setErr] = useState<string | null>(null);
   const [active, setActive] = useState<Tab>("upcoming");
   const [canceling, setCanceling] = useState<string | null>(null);
-  const { services } = useServicesWithImages();
+  const { services } = useServices();
 
   const serviceName = (serviceId: string) =>
     services.find((s) => s.id === serviceId)?.name || "Behandling";

@@ -1,6 +1,15 @@
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
-import { LOGIN_URL, REGISTER_URL, REVOKE_REFRESH_TOKEN_URL } from "./apiUrl";
+import {
+  LOGIN_URL,
+  GOOGLE_LOGIN_URL,
+  REGISTER_URL,
+  REVOKE_REFRESH_TOKEN_URL,
+  FORGOT_PASSWORD_URL,
+  RESET_PASSWORD_URL,
+  CONFIRM_EMAIL_URL,
+  RESEND_CONFIRMATION_URL,
+} from "./apiUrl";
 import { api, refreshAccessToken } from "./apiService";
 import { setAccessToken, clearAccessToken, getAccessToken } from "./tokenStore";
 
@@ -61,6 +70,68 @@ export async function registerUser(data: RegisterData): Promise<void> {
 }
 
 /**
+ * Begär en återställningslänk. Servern svarar alltid 200
+ * (avslöjar inte om adressen finns).
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await axios.post(FORGOT_PASSWORD_URL, { email });
+}
+
+export interface ResetPasswordData {
+  email: string;
+  token: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}
+
+/**
+ * Sätter nytt lösenord med token från återställningsmejlet.
+ */
+export async function resetPassword(data: ResetPasswordData): Promise<void> {
+  try {
+    await axios.post(RESET_PASSWORD_URL, data);
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const responseData = error.response?.data;
+      if (typeof responseData === "string" && responseData) {
+        throw new Error(responseData);
+      }
+      if (responseData?.title) {
+        throw new Error(responseData.title);
+      }
+    }
+    throw new Error("Kunde inte återställa lösenordet. Försök igen.");
+  }
+}
+
+/**
+ * Bekräftar e-postadressen med token från bekräftelsemejlet.
+ */
+export async function confirmEmail(userId: string, token: string): Promise<void> {
+  try {
+    await axios.post(CONFIRM_EMAIL_URL, { userId, token });
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const responseData = error.response?.data;
+      if (typeof responseData === "string" && responseData) {
+        throw new Error(responseData);
+      }
+      if (responseData?.title) {
+        throw new Error(responseData.title);
+      }
+    }
+    throw new Error("Kunde inte bekräfta e-postadressen. Försök igen.");
+  }
+}
+
+/**
+ * Begär ett nytt bekräftelsemejl. Servern svarar alltid 200.
+ */
+export async function resendConfirmation(email: string): Promise<void> {
+  await axios.post(RESEND_CONFIRMATION_URL, { email });
+}
+
+/**
  * Logs in the user.
  *
  * Backend returns accessToken in response body and sets refreshToken in HttpOnly cookie.
@@ -85,6 +156,38 @@ export async function loginUser(email: string, password: string): Promise<void> 
     if (axios.isAxiosError(error)) {
       const errorMessage = error.response?.data || error.message;
       throw new Error(typeof errorMessage === 'string' ? errorMessage : "Failed to log in. Please try again.");
+    }
+    throw new Error("An unexpected error occurred");
+  }
+}
+
+/**
+ * Loggar in med ett Google ID-token (från Google Identity Services).
+ * Backend verifierar tokenet och svarar precis som vanlig login:
+ * accessToken i body + refresh-token som HttpOnly-cookie.
+ */
+export async function loginWithGoogle(credential: string): Promise<void> {
+  try {
+    const response = await axios.post(
+      GOOGLE_LOGIN_URL,
+      { idToken: credential },
+      { withCredentials: true } // Krävs för att ta emot HttpOnly-cookien
+    );
+
+    const token = response.data.accessToken;
+    if (!token) {
+      throw new Error("No access token received from server");
+    }
+
+    setAccessToken(token);
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const errorMessage = error.response?.data || error.message;
+      throw new Error(
+        typeof errorMessage === "string"
+          ? errorMessage
+          : "Google-inloggningen misslyckades. Försök igen."
+      );
     }
     throw new Error("An unexpected error occurred");
   }
