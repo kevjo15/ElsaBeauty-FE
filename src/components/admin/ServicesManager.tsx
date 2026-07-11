@@ -216,6 +216,10 @@ const ServicesManager: React.FC = () => {
 
       if (editing === "new") {
         const created = await createService(input);
+        // Behandlingen finns nu i databasen. Växla till redigeringsläge direkt så
+        // att om bild-/kategori-stegen nedan fallerar, ett nytt försök UPPDATERAR
+        // den befintliga raden istället för att skapa en dubblett.
+        setEditing(created);
         if (imageFile) await uploadServiceImage(created.id, imageFile);
         if (categoryId) await linkServiceToCategory(categoryId, created.id);
         toast.success("Behandlingen har skapats");

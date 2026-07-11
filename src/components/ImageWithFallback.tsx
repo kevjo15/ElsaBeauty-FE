@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ImageOff } from "lucide-react";
 
 type ImageWithFallbackProps = {
@@ -22,6 +22,13 @@ const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
 }) => {
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // Nollställ vid ny källa — annars fastnar en tidigare felad bild i fallback
+  // även när en ny giltig src ges (t.ex. byt bild i admin, eller ny SAS-URL).
+  useEffect(() => {
+    setHasError(false);
+    setIsLoaded(false);
+  }, [src]);
 
   if (!src || hasError) {
     return (
