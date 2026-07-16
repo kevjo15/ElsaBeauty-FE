@@ -117,7 +117,7 @@ const BookingsReport: React.FC = () => {
         {report && (
           <>
             {/* Nyckeltal */}
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4 max-w-2xl">
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 max-w-4xl">
               <div className="rounded-xl bg-primary/10 ring-1 ring-primary/20 p-4">
                 <p className="text-sm text-base-content/70">Bokningar</p>
                 <p className="text-2xl font-semibold text-primary">
@@ -125,15 +125,27 @@ const BookingsReport: React.FC = () => {
                 </p>
               </div>
               <div className="rounded-xl bg-accent/15 ring-1 ring-accent/30 p-4">
-                <p className="text-sm text-base-content/70">Omsättning</p>
+                <p className="text-sm text-base-content/70">Bokat värde</p>
                 <p className="text-2xl font-semibold">
                   {formatKr(report.totalRevenue)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-success/10 ring-1 ring-success/20 p-4">
+                <p className="text-sm text-base-content/70">Inbetalt (online)</p>
+                <p className="text-2xl font-semibold text-success">
+                  {formatKr(report.amountCollected)}
                 </p>
               </div>
               <div className="rounded-xl bg-base-200 ring-1 ring-base-300 p-4">
                 <p className="text-sm text-base-content/70">Avbokningar</p>
                 <p className="text-2xl font-semibold text-base-content/80">
                   {report.cancelledBookings}
+                </p>
+              </div>
+              <div className="rounded-xl bg-error/10 ring-1 ring-error/20 p-4">
+                <p className="text-sm text-base-content/70">Uteblivna</p>
+                <p className="text-2xl font-semibold text-error">
+                  {report.noShowBookings}
                 </p>
               </div>
             </div>
@@ -146,7 +158,7 @@ const BookingsReport: React.FC = () => {
                     <tr>
                       <th>Behandling</th>
                       <th className="text-right">Antal</th>
-                      <th className="text-right">Omsättning</th>
+                      <th className="text-right">Bokat värde</th>
                     </tr>
                   </thead>
                   <tbody>

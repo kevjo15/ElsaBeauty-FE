@@ -12,6 +12,8 @@
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@microsoft/signalr": "^10.0.0",
+    "@stripe/react-stripe-js": "^6.7.0",
+    "@stripe/stripe-js": "^9.9.0",
     "axios": "^1.7.9",
     "clsx": "^2.1.1",
     "daisyui": "^5.1.14",

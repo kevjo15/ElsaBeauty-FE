@@ -76,9 +76,36 @@ const TermsPage = () => {
 
       <LegalSection heading="4. Priser och betalning">
         <p>
-          Priser anges i svenska kronor. Betalning sker på plats hos kliniken i
-          samband med besöket — ingen betalning genomförs i tjänsten. Vi
-          reserverar oss för prisändringar och för eventuella felskrivningar.
+          Priser anges i svenska kronor. Vi reserverar oss för prisändringar och
+          för eventuella felskrivningar. All kortbetalning hanteras av vår
+          betalningsleverantör Stripe — vi lagrar aldrig ditt kortnummer.
+        </p>
+        <p>
+          När du bokar väljer du hur du vill betala:
+        </p>
+        <LegalList>
+          <li>
+            <strong>Betala online.</strong> Hela priset betalas direkt vid
+            bokningen — med kort, Google Pay, Apple Pay eller Klarna.
+            Behandlingen är då fullt betald.
+          </li>
+          <li>
+            <strong>Betala på plats (sparat kort).</strong> Inget dras vid
+            bokningen — ditt kort sparas endast som säkerhet. Du betalar hela
+            beloppet på plats.
+          </li>
+        </LegalList>
+        <p>
+          <strong>Återbetalning vid avbokning.</strong> Har du betalat online och
+          avbokar <strong>senast 24 timmar</strong> före besöket återbetalas det
+          inbetalda beloppet i sin helhet till ditt kort. Vid avbokning{" "}
+          <strong>senare än 24 timmar</strong> före besöket, eller vid uteblivet
+          besök, behålls det inbetalda beloppet som avgift enligt punkt 3.
+        </p>
+        <p>
+          Har du valt <strong>betala på plats</strong> och uteblir, eller avbokar
+          senare än 24 timmar före besöket, kan no-show-avgiften (se punkt 3) dras
+          från ditt sparade kort. I övrigt debiteras kortet aldrig via tjänsten.
         </p>
       </LegalSection>
 

@@ -47,6 +47,10 @@ export interface BookingRequest {
   employeeId: string;
   startTime: string;
   endTime: string;
+  /** Stripe payment-method-id från sparat kort (betala på plats/kort-på-fil). */
+  paymentMethodId?: string;
+  /** Stripe PaymentIntent-id om kunden betalade hela priset online. */
+  paymentIntentId?: string;
 }
 
 export interface EmployeeSchedule {
@@ -82,6 +86,13 @@ export interface BookingResponse {
   conversationId?: string;
   isChatOpen?: boolean;
   status?: string;
+  // Kort-på-fil-status
+  hasSavedCard?: boolean;
+  cardBrand?: string;
+  cardLast4?: string;
+  // Onlinebetalning: "None" | "PaidInFull" | "Refunded"
+  paymentStatus?: string;
+  amountPaid?: number;
   // Flat strings
   employeeName?: string;
   customerName?: string;
@@ -99,6 +110,7 @@ export interface BookingsReportRow {
   customerName: string;
   employeeName: string;
   isCancelled: boolean;
+  isNoShow: boolean;
 }
 
 export interface BookingsReportServiceLine {
@@ -112,7 +124,9 @@ export interface BookingsReport {
   to: string;
   totalBookings: number;
   totalRevenue: number;
+  amountCollected: number;
   cancelledBookings: number;
+  noShowBookings: number;
   perService: BookingsReportServiceLine[];
   rows: BookingsReportRow[];
 }

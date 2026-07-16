@@ -7,6 +7,40 @@ import { getBookingById, type BookingResponse } from "@/services/api";
 import { useServices } from "@/hooks/useServices";
 import { CheckCircle2, Calendar, Clock, CreditCard, User } from "lucide-react";
 
+/**
+ * Visar vad som betalats/sparats vid bokningen: hela beloppet online,
+ * eller sparat kort (betala på plats). Returnerar null när Stripe inte används.
+ */
+const PaymentSummary: React.FC<{
+  paymentStatus?: string;
+  amountPaid?: number;
+  hasSavedCard?: boolean;
+}> = ({ paymentStatus, amountPaid, hasSavedCard }) => {
+  if (paymentStatus === "PaidInFull") {
+    return (
+      <div className="flex items-center gap-3 p-3 rounded-lg bg-success/10">
+        <CheckCircle2 className="h-5 w-5 text-success" />
+        <p className="text-sm text-left text-base-content/70">
+          Betalt online: <strong>{amountPaid} kr</strong>. Din behandling är
+          fullt betald.
+        </p>
+      </div>
+    );
+  }
+  if (hasSavedCard) {
+    return (
+      <div className="flex items-center gap-3 p-3 rounded-lg bg-success/10">
+        <CheckCircle2 className="h-5 w-5 text-success" />
+        <p className="text-sm text-left text-base-content/70">
+          Kort sparat — du betalar på plats. Kortet debiteras endast vid
+          utebliven tid, enligt våra villkor.
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 const BookingConfirmationPage: React.FC = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
   const location = useLocation();
@@ -93,7 +127,8 @@ const BookingConfirmationPage: React.FC = () => {
   );
 
   if (stateBookingDetails) {
-    const { service, employee, date, slot } = stateBookingDetails;
+    const { service, employee, date, slot, paymentStatus, amountPaid, hasSavedCard } =
+      stateBookingDetails;
     const employeeName = employee
       ? [employee.firstName, employee.lastName].filter(Boolean).join(" ") || employee.email
       : null;
@@ -131,6 +166,11 @@ const BookingConfirmationPage: React.FC = () => {
                     <p className="font-bold text-lg">{service.price} kr</p>
                   </div>
                 </div>
+                <PaymentSummary
+                  paymentStatus={paymentStatus}
+                  amountPaid={amountPaid}
+                  hasSavedCard={hasSavedCard}
+                />
               </div>
               <div className="card-actions justify-center mt-6 gap-2">
                 <Link to="/dashboard" className="btn btn-ghost">Till Dashboard</Link>
@@ -180,6 +220,11 @@ const BookingConfirmationPage: React.FC = () => {
                   <p className="font-bold text-lg">{getServicePrice(booking!.serviceId)} kr</p>
                 </div>
               </div>
+              <PaymentSummary
+                paymentStatus={booking!.paymentStatus}
+                amountPaid={booking!.amountPaid}
+                hasSavedCard={booking!.hasSavedCard}
+              />
             </div>
             <div className="card-actions justify-center mt-6 gap-2">
               <Link to="/dashboard" className="btn btn-ghost">Till Dashboard</Link>

@@ -73,6 +73,10 @@ export const GET_CATEGORIES_WITH_SERVICES_URL = `${API_BASE_URL}/categories/with
 
 /* Booking endpoints */
 export const CREATE_BOOKING_URL = `${API_BASE_URL}/bookings`;
+export const FINALIZE_PAYMENT_URL = `${API_BASE_URL}/bookings/from-payment`;
+export const CREATE_SETUP_INTENT_URL = `${API_BASE_URL}/payments/setup-intent`;
+export const CREATE_PAYMENT_INTENT_URL = `${API_BASE_URL}/payments/payment-intent`;
+export const BOOKINGS_BASE_URL = `${API_BASE_URL}/bookings`;
 export const GET_AVAILABLE_SLOTS_URL = `${API_BASE_URL}/bookings/availability`;
 export const GET_MY_BOOKINGS_URL = `${API_BASE_URL}/bookings/me`;
 export const CANCEL_BOOKING_URL = `${API_BASE_URL}/bookings`;

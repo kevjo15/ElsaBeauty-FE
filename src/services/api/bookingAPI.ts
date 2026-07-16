@@ -1,6 +1,7 @@
 import {
   GET_AVAILABLE_SLOTS_URL,
   CREATE_BOOKING_URL,
+  FINALIZE_PAYMENT_URL,
   GET_MY_BOOKINGS_URL,
   CANCEL_BOOKING_URL,
   GET_MY_ASSIGNED_BOOKINGS_URL,
@@ -95,6 +96,19 @@ export async function createBooking(
     console.error("Failed to create booking:", error);
     throw error;
   }
+}
+
+/**
+ * Slutför en bokning efter en genomförd onlinebetalning (redirect-retur, t.ex. Klarna).
+ * Bokningsuppgifterna hämtas serverside ur PaymentIntent-metadatan; idempotent.
+ */
+export async function finalizePaymentBooking(
+  paymentIntentId: string
+): Promise<BookingResponse | null> {
+  const response = await api.post<BookingResponse>(FINALIZE_PAYMENT_URL, {
+    paymentIntentId,
+  });
+  return response.data;
 }
 
 /**
