@@ -48,6 +48,13 @@ const PrivacyPolicyPage = () => {
           Google-inloggningen till det kontot.
         </p>
         <p>
+          <strong>Betalningsuppgifter.</strong> När du sparar ett kort vid bokning
+          hanteras själva kortuppgifterna av vår betalningsleverantör Stripe — de
+          når aldrig våra servrar. Vi lagrar endast en referens (Stripe-kund- och
+          betalningsmetod-id) samt kortets märke och sista fyra siffror, för att
+          kunna dra en eventuell no-show-avgift och visa vilket kort som är sparat.
+        </p>
+        <p>
           <strong>Bokningar.</strong> Vald behandling, datum och tid, tilldelad
           personal samt bokningens status (aktiv eller avbokad).
         </p>
@@ -142,6 +149,10 @@ const PrivacyPolicyPage = () => {
           <li>
             <strong>Azure Application Insights</strong> — drifttelemetri och
             felsökning.
+          </li>
+          <li>
+            <strong>Stripe</strong> — betalningsleverantör som hanterar och lagrar
+            dina kortuppgifter samt drar en eventuell no-show-avgift.
           </li>
           <li>
             <strong>Google</strong> — endast om du själv väljer att logga in med

@@ -16,6 +16,10 @@ import TimeSlotSelector from "@/components/booking/TimeSlotSelector";
 import BookingSummary from "@/components/booking/BookingSummary";
 import DateSelector from "@/components/booking/DateSelector";
 import BookingConfirmationModal from "@/components/booking/BookingConfirmationModal";
+import PaymentChoiceModal, {
+  type PaymentChoiceResult,
+} from "@/components/booking/PaymentChoiceModal";
+import { isStripeEnabled } from "@/services/stripe";
 import { useServices } from "@/hooks/useServices";
 import { useTimeSlots } from "@/hooks/useTimeSlots";
 import { CheckCircle2, Clock, X } from "lucide-react";
@@ -112,6 +116,7 @@ const BookingPage: React.FC = () => {
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [step, setStep] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showCardModal, setShowCardModal] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
   const [pendingDraft, setPendingDraft] = useState<BookingDraft | null>(null);
@@ -236,7 +241,8 @@ const BookingPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleConfirmBooking = async () => {
+  // Skapar bokningen. paymentMethodId sätts när kort-på-fil-steget körts.
+  const finalizeBooking = async (payment: PaymentChoiceResult = {}) => {
     if (!user || !selectedService || !selectedEmployee || !selectedSlot) {
       setBookingError("Vänligen välj behandling, medarbetare, datum och tid.");
       return;
@@ -252,6 +258,8 @@ const BookingPage: React.FC = () => {
         employeeId: selectedEmployee.id,
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
+        paymentMethodId: payment.paymentMethodId,
+        paymentIntentId: payment.paymentIntentId,
       };
 
       const bookingResponse = await createBooking(bookingData);
@@ -269,6 +277,9 @@ const BookingPage: React.FC = () => {
             employee: selectedEmployee,
             date: selectedDate,
             slot: selectedSlot,
+            paymentStatus: bookingResponse?.paymentStatus,
+            amountPaid: bookingResponse?.amountPaid,
+            hasSavedCard: bookingResponse?.hasSavedCard,
           },
         },
       });
@@ -282,7 +293,26 @@ const BookingPage: React.FC = () => {
     } finally {
       setBookingLoading(false);
       setIsModalOpen(false);
+      setShowCardModal(false);
     }
+  };
+
+  const handleConfirmBooking = async () => {
+    if (!user || !selectedService || !selectedEmployee || !selectedSlot) {
+      setBookingError("Vänligen välj behandling, medarbetare, datum och tid.");
+      return;
+    }
+
+    // Kort-på-fil: när Stripe är konfigurerat sparas kortet/betalningen först, sedan
+    // skapas bokningen. Utan Stripe (ingen publik nyckel) bokas kortlöst — steget hoppas
+    // över. Redirect-betalsätt (Klarna) hanteras via PI-metadatan + /payment-return.
+    if (isStripeEnabled) {
+      setIsModalOpen(false);
+      setShowCardModal(true);
+      return;
+    }
+
+    await finalizeBooking();
   };
 
   const formatTimeSlot = (slot: TimeSlot) =>
@@ -483,6 +513,17 @@ const BookingPage: React.FC = () => {
           selectedSlot={selectedSlot}
           loading={bookingLoading}
           formatTimeSlot={formatTimeSlot}
+        />
+
+        <PaymentChoiceModal
+          isOpen={showCardModal}
+          onClose={() => setShowCardModal(false)}
+          serviceId={selectedService?.id ?? ""}
+          servicePrice={selectedService?.price ?? 0}
+          employeeId={selectedEmployee?.id ?? ""}
+          startTime={selectedSlot?.startTime ?? ""}
+          endTime={selectedSlot?.endTime ?? ""}
+          onComplete={(result) => finalizeBooking(result)}
         />
       </div>
     </MainLayout>

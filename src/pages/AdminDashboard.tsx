@@ -12,7 +12,10 @@ import { getAllServices } from "@/services/api/serviceAPI";
 import type { BookingResponse, Employee, Service } from "@/services/api/types";
 import { addDays, format, startOfDay } from "date-fns";
 import { sv } from "date-fns/locale";
-import { MessageCircle, User } from "lucide-react";
+import { MessageCircle, User, UserX } from "lucide-react";
+import { toast } from "sonner";
+import { AxiosError } from "axios";
+import { markBookingNoShow } from "@/services/api/paymentAPI";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import ScheduleSection from "@/components/schedule/ScheduleSection";
 import BookingsReport from "@/components/admin/BookingsReport";
@@ -34,6 +37,7 @@ const getStatusBadge = (b: BookingResponse): { text: string; className: string }
   if (b.status) {
     const s = b.status.toLowerCase();
     if (s.includes("cancel")) return { text: "Avbokad", className: "badge-error" };
+    if (s.includes("noshow")) return { text: "Utebliven", className: "badge-error" };
     if (s.includes("complete")) return { text: "Avslutad", className: "badge-success" };
   }
 
@@ -89,6 +93,8 @@ const AdminDashboard: React.FC = () => {
   const [selectedBooking, setSelectedBooking] = useState<BookingResponse | null>(null);
   const [detailBooking, setDetailBooking] = useState<BookingResponse | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
+  const [noShowTarget, setNoShowTarget] = useState<BookingResponse | null>(null);
+  const [noShowLoading, setNoShowLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "unassigned" | "chat">("all");
   const [sortSoonest, setSortSoonest] = useState<boolean>(false);
@@ -115,6 +121,38 @@ const AdminDashboard: React.FC = () => {
       }
     } catch {
       setError("Kunde inte hämta data. Kontrollera behörighet/inloggning.");
+    }
+  };
+
+  // Utebliven kan bara markeras på en passerad, ej avslutad/avbokad bokning.
+  const canMarkNoShow = (b: BookingResponse) => {
+    const isPastBooking = new Date(b.endTime) < new Date();
+    const status = (b.status || "").toLowerCase();
+    const isTerminal =
+      status.includes("cancel") ||
+      status.includes("noshow") ||
+      status.includes("complete");
+    return isPastBooking && !isTerminal;
+  };
+
+  const handleMarkNoShow = async () => {
+    if (!noShowTarget) return;
+    setNoShowLoading(true);
+    try {
+      await markBookingNoShow(noShowTarget.id);
+      toast.success("Bokningen markerades som utebliven.");
+      setNoShowTarget(null);
+      await loadData();
+    } catch (e) {
+      const data =
+        e instanceof AxiosError ? e.response?.data : undefined;
+      const msg =
+        typeof data === "string" && data
+          ? data
+          : data?.title || data?.error || "Kunde inte markera som utebliven.";
+      toast.error(msg);
+    } finally {
+      setNoShowLoading(false);
     }
   };
 
@@ -510,6 +548,19 @@ const AdminDashboard: React.FC = () => {
                                     }}
                                   />
                                 )}
+                              {canMarkNoShow(b) && (
+                                <button
+                                  className="btn btn-ghost btn-xs text-error"
+                                  title="Markera som utebliven"
+                                  aria-label="Markera som utebliven"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setNoShowTarget(b);
+                                  }}
+                                >
+                                  <UserX className="h-4 w-4" />
+                                </button>
+                              )}
                               {assigning === b.id && (
                                 <span className="loading loading-spinner loading-xs" />
                               )}
@@ -688,6 +739,61 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
             <div className="modal-backdrop bg-black/30" onClick={() => setAssignConfirm(null)} />
+          </dialog>
+        )}
+
+        {/* Bekräfta no-show → drar avgift från sparat kort */}
+        {noShowTarget && (
+          <dialog className="modal modal-open">
+            <div className="modal-box">
+              <h3 className="font-bold text-lg text-error flex items-center gap-2">
+                <UserX className="h-5 w-5" />
+                Markera som utebliven
+              </h3>
+              <p className="py-4 text-sm">
+                Markera bokningen{" "}
+                <span className="font-semibold">
+                  {noShowTarget.serviceName || "behandlingen"}
+                </span>{" "}
+                {noShowTarget.customerName ? (
+                  <>
+                    för <span className="font-semibold">{noShowTarget.customerName}</span>{" "}
+                  </>
+                ) : null}
+                som utebliven?
+                {noShowTarget.hasSavedCard ? (
+                  <>
+                    {" "}No-show-avgiften dras då från kundens sparade kort
+                    {noShowTarget.cardLast4 ? ` (••${noShowTarget.cardLast4})` : ""}.
+                  </>
+                ) : (
+                  <> Bokningen saknar sparat kort — ingen avgift kan dras automatiskt.</>
+                )}
+              </p>
+              <div className="modal-action">
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setNoShowTarget(null)}
+                  disabled={noShowLoading}
+                >
+                  Avbryt
+                </button>
+                <button
+                  className="btn btn-error"
+                  onClick={handleMarkNoShow}
+                  disabled={noShowLoading}
+                >
+                  {noShowLoading && (
+                    <span className="loading loading-spinner loading-xs" />
+                  )}
+                  Markera utebliven
+                </button>
+              </div>
+            </div>
+            <div
+              className="modal-backdrop bg-black/30"
+              onClick={() => !noShowLoading && setNoShowTarget(null)}
+            />
           </dialog>
         )}
 

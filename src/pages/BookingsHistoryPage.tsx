@@ -35,10 +35,25 @@ const getStatusInfo = (status?: string, isPast?: boolean) => {
   if (st.includes("cancel")) {
     return { text: "Avbokad", className: "badge-error", icon: XCircle };
   }
+  if (st.includes("noshow")) {
+    return { text: "Utebliven", className: "badge-error", icon: XCircle };
+  }
   if (st.includes("completed") || st.includes("done") || st.includes("finished") || isPast) {
     return { text: "Avslutad", className: "badge-success", icon: CheckCircle2 };
   }
   return { text: "Bokad", className: "badge-neutral", icon: Clock };
+};
+
+/** Betalstatus-badge för onlinebetalning (visas ej för "betala på plats"). */
+const getPaymentBadge = (paymentStatus?: string) => {
+  switch (paymentStatus) {
+    case "PaidInFull":
+      return { text: "Betald", className: "badge-success" };
+    case "Refunded":
+      return { text: "Återbetald", className: "badge-info" };
+    default:
+      return null;
+  }
 };
 
 const ChatButtonWithBadge: React.FC<{ booking: BookingResponse }> = ({ booking }) => {
@@ -114,14 +129,26 @@ const BookingsHistoryPage: React.FC = () => {
     return { upcoming: up, history: past };
   }, [bookings, now]);
 
-  const handleCancel = async (bookingId: string) => {
-    const ok = window.confirm("Är du säker på att du vill avboka denna tid?");
+  const handleCancel = async (booking: BookingResponse) => {
+    const paidOnline = booking.paymentStatus === "PaidInFull";
+    const hoursUntil =
+      (new Date(booking.startTime).getTime() - Date.now()) / 3_600_000;
+
+    let message = "Är du säker på att du vill avboka denna tid?";
+    if (paidOnline) {
+      message =
+        hoursUntil > 24
+          ? `Du avbokar mer än 24 timmar före besöket — ${booking.amountPaid} kr återbetalas till ditt kort. Vill du fortsätta?`
+          : `Avbokning mindre än 24 timmar före besöket ger ingen återbetalning (${booking.amountPaid} kr behålls enligt villkoren). Vill du fortsätta?`;
+    }
+
+    const ok = window.confirm(message);
     if (!ok) return;
-    setCanceling(bookingId);
+    setCanceling(booking.id);
     try {
-      const success = await cancelBooking(bookingId);
+      const success = await cancelBooking(booking.id);
       if (success) {
-        setBookings((prev) => prev.filter((b) => b.id !== bookingId));
+        setBookings((prev) => prev.filter((b) => b.id !== booking.id));
       } else {
         alert("Avbokning misslyckades. Försök igen.");
       }
@@ -139,6 +166,7 @@ const BookingsHistoryPage: React.FC = () => {
     const durationLabel = formatDistanceStrict(start, end, { locale: sv });
     const statusInfo = getStatusInfo(booking.status, pastBooking);
     const StatusIcon = statusInfo.icon;
+    const paymentBadge = getPaymentBadge(booking.paymentStatus);
 
     return (
       <div className={`card bg-base-100 shadow-sm border border-base-200 hover:shadow-md transition-shadow ${pastBooking ? "opacity-75" : ""}`}>
@@ -151,6 +179,11 @@ const BookingsHistoryPage: React.FC = () => {
                   <StatusIcon className="h-3 w-3" />
                   {statusInfo.text}
                 </span>
+                {paymentBadge && (
+                  <span className={`badge badge-outline ${paymentBadge.className}`}>
+                    {paymentBadge.text}
+                  </span>
+                )}
                 {isSoon && (
                   <span className="badge badge-secondary badge-outline">
                     {daysUntil === 0 ? "Idag" : `Om ${daysUntil} dag${daysUntil === 1 ? "" : "ar"}`}
@@ -190,7 +223,7 @@ const BookingsHistoryPage: React.FC = () => {
               {canCancel && (
                 <button
                   className="btn btn-ghost btn-sm text-error hover:bg-error/10 flex-1 sm:flex-none"
-                  onClick={() => handleCancel(booking.id)}
+                  onClick={() => handleCancel(booking)}
                   disabled={canceling === booking.id}
                 >
                   {canceling === booking.id ? (
