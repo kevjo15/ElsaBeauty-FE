@@ -151,6 +151,26 @@ export function useNotifications(userId: string | undefined): UseNotificationsRe
     setLoading(true);
     const fetched = await fetchNotificationsFromApi();
 
+    // Meddelande-notiser för chatten användaren just nu tittar på ska aldrig
+    // visas olästa. Live-flödet (handleNotification) har den kollen, men notiser
+    // som kommer in via denna refetch — t.ex. missade under ett anslutningsglapp
+    // — måste kvitteras här: lokalt, och mot API:t så de förblir lästa.
+    const activeConv = (getActiveConversationId() ?? "").toLowerCase();
+    const missedActiveIds = fetched
+      .filter(
+        (n) =>
+          !n.isRead &&
+          !localReadIds.current.has(n.id) &&
+          !!activeConv &&
+          Number(n.type) === NotificationType.MessageReceived &&
+          n.conversationId?.toLowerCase() === activeConv
+      )
+      .map((n) => n.id);
+    if (missedActiveIds.length > 0) {
+      missedActiveIds.forEach((id) => localReadIds.current.add(id));
+      persistNotificationReads(missedActiveIds);
+    }
+
     const normalized = fetched
       .map((n) => (localReadIds.current.has(n.id) ? { ...n, isRead: true } : n))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -173,7 +193,7 @@ export function useNotifications(userId: string | undefined): UseNotificationsRe
 
     setInitialUnreadCounts(unreadByConv);
     setLoading(false);
-  }, [setInitialUnreadCounts]);
+  }, [setInitialUnreadCounts, getActiveConversationId, persistNotificationReads]);
 
   // ── Initial load ──────────────────────────────────────────────────────────────
   useEffect(() => {
