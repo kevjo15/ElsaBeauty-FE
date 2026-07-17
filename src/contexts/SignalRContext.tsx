@@ -104,8 +104,24 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
     void startHub(CHAT_HUB_URL, chatRef, setChatStatus, setChatHub);
     void startHub(NOTIFICATION_HUB_URL, notifRef, setNotificationStatus, setNotificationHub);
 
+    // Mobiler fryser bakgrundsflikar/låst skärm; efter en längre paus ger
+    // withAutomaticReconnect upp (onclose → ref = null) och inget återansluter.
+    // Starta om döda hubbar när sidan blir synlig igen istället för att
+    // kräva en sidladdning.
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!chatRef.current) {
+        void startHub(CHAT_HUB_URL, chatRef, setChatStatus, setChatHub);
+      }
+      if (!notifRef.current) {
+        void startHub(NOTIFICATION_HUB_URL, notifRef, setNotificationStatus, setNotificationHub);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
       isMounted = false;
+      document.removeEventListener("visibilitychange", onVisible);
 
       const chat = chatRef.current;
       const notif = notifRef.current;

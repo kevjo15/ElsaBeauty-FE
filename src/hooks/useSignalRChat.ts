@@ -153,6 +153,32 @@ export function useSignalRChat({
     return () => { cancelled = true; };
   }, [conversationId]);
 
+  // ── Resynka historiken efter återanslutning ─────────────────────────────────
+  // SignalR spelar inte upp meddelanden som skickades medan anslutningen var nere
+  // (t.ex. låst mobil): utan omhämtning saknas de tills sidan laddas om, trots att
+  // notisen (som går via databasen) kommer fram. Vid varje övergång till
+  // "connected" hämtas historiken igen och mergeas in — upsertMessage dedupar.
+  const prevChatStatusRef = useRef<ConnectionStatus | null>(null);
+  useEffect(() => {
+    const prev = prevChatStatusRef.current;
+    prevChatStatusRef.current = chatStatus;
+
+    // Ingen observerad övergång (första render) eller inte nyansluten → inget att göra.
+    if (prev === null || chatStatus !== "connected" || prev === "connected") return;
+    if (!conversationId) return;
+
+    let cancelled = false;
+    void fetchConversationMessages(conversationId)
+      .then((history) => {
+        if (cancelled || !history?.length) return;
+        history.forEach(upsertMessage);
+        // Användaren tittar på chatten — kvittera ev. missade meddelanden som lästa.
+        requestBulkReadFallback();
+      })
+      .catch(() => null); // Nästa återanslutning eller sidladdning försöker igen.
+    return () => { cancelled = true; };
+  }, [chatStatus, conversationId, upsertMessage, requestBulkReadFallback]);
+
   // ── Join / leave conversation group ─────────────────────────────────────────
   // Runs when the hub becomes available OR when the connection is restored after
   // a reconnect (chatStatus changes to "connected").
