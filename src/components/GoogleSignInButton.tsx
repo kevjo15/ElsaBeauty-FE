@@ -34,11 +34,26 @@ function loadGsiScript(): Promise<void> {
  * (POST /api/auth/google) — samma sessionsflöde som lösenordslogin därefter.
  * Renderar ingenting om VITE_GOOGLE_CLIENT_ID saknas.
  */
+/** Läser aktuellt läge från <html> (theme-providern togglar .dark). */
+const isDarkMode = () =>
+  typeof document !== "undefined" &&
+  document.documentElement.classList.contains("dark");
+
 const GoogleSignInButton = () => {
   const { loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
+  const [dark, setDark] = useState(isDarkMode);
+
+  // Följ temaväxlingen (lampan i navbaren togglar .dark på <html>) så knappen
+  // renderas om med rätt Google-tema i både ljust och mörkt läge.
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => setDark(isDarkMode()));
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!CLIENT_ID || !containerRef.current) return;
@@ -67,14 +82,22 @@ const GoogleSignInButton = () => {
           },
         });
 
+        // Matcha bredden mot de övriga (full-bredd) knapparna; GIS tillåter max 400.
+        const width = Math.min(
+          400,
+          Math.max(240, Math.round(containerRef.current.offsetWidth || 360))
+        );
+        // Rensa ev. tidigare iframe (annars staplas knappar vid tema-växling).
+        containerRef.current.innerHTML = "";
         window.google.accounts.id.renderButton(containerRef.current, {
           type: "standard",
-          theme: "outline",
+          // Mörkt läge → fylld svart (smälter in); ljust → outline (ren vit).
+          theme: dark ? "filled_black" : "outline",
           size: "large",
           text: "continue_with",
           shape: "rectangular",
           logo_alignment: "center",
-          width: 320,
+          width,
           locale: "sv_SE",
         });
       })
@@ -86,7 +109,7 @@ const GoogleSignInButton = () => {
     return () => {
       cancelled = true;
     };
-  }, [loginWithGoogle, navigate]);
+  }, [loginWithGoogle, navigate, dark]);
 
   // Utan klient-ID visas varken knapp eller avdelare — aldrig en död yta.
   if (!CLIENT_ID) return null;
@@ -94,8 +117,8 @@ const GoogleSignInButton = () => {
   return (
     <>
       <div className="divider text-xs text-base-content/50 my-1">eller</div>
-      <div className="relative flex justify-center">
-        <div ref={containerRef} />
+      <div className="relative">
+        <div ref={containerRef} className="flex justify-center [color-scheme:normal]" />
         {busy && (
           <div className="absolute inset-0 flex items-center justify-center bg-base-100/60">
             <span className="loading loading-spinner loading-sm" />
