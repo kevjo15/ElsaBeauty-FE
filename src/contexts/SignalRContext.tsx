@@ -73,6 +73,16 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
 
     let isMounted = true;
 
+    // Utestående omstartstimers, så cleanup (utloggning/unmount) kan avbryta dem.
+    const retryHandles = new Set<ReturnType<typeof setTimeout>>();
+    function scheduleRetry(fn: () => void, delayMs: number) {
+      const handle = setTimeout(() => {
+        retryHandles.delete(handle);
+        if (isMounted) fn();
+      }, delayMs);
+      retryHandles.add(handle);
+    }
+
     async function startHub(
       url: string,
       ref: React.MutableRefObject<HubConnection | null>,
@@ -100,6 +110,9 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
           ref.current = null;
           setHub(null);
           setStatus("disconnected");
+          // Självläkning: oavsett varför anslutningen dog — bygg en ny strax.
+          // (Vid utloggning/unmount är isMounted false och inget schemaläggs.)
+          scheduleRetry(() => void startHub(url, ref, setStatus, setHub), 5000);
         }
       });
 
@@ -117,6 +130,8 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
         if (isMounted) {
           ref.current = null;
           setStatus("disconnected");
+          // Första starten misslyckades (BE nere / nät ej uppe) — försök igen.
+          scheduleRetry(() => void startHub(url, ref, setStatus, setHub), 10000);
         }
       }
     }
@@ -124,11 +139,10 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
     void startHub(CHAT_HUB_URL, chatRef, setChatStatus, setChatHub);
     void startHub(NOTIFICATION_HUB_URL, notifRef, setNotificationStatus, setNotificationHub);
 
-    // Mobiler fryser bakgrundsflikar/låst skärm; efter en längre paus ger
-    // withAutomaticReconnect upp (onclose → ref = null) och inget återansluter.
-    // Starta om döda hubbar när sidan blir synlig igen istället för att
-    // kräva en sidladdning.
-    const onVisible = () => {
+    // Mobiler fryser bakgrundsflikar/låst skärm och tappar nätet en stund vid
+    // upplåsning. När sidan blir synlig eller nätet kommer tillbaka: starta
+    // döda hubbar direkt istället för att vänta på nästa omstartstimer.
+    const reviveDeadHubs = () => {
       if (document.visibilityState !== "visible") return;
       if (!chatRef.current) {
         void startHub(CHAT_HUB_URL, chatRef, setChatStatus, setChatHub);
@@ -137,11 +151,15 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
         void startHub(NOTIFICATION_HUB_URL, notifRef, setNotificationStatus, setNotificationHub);
       }
     };
-    document.addEventListener("visibilitychange", onVisible);
+    document.addEventListener("visibilitychange", reviveDeadHubs);
+    window.addEventListener("online", reviveDeadHubs);
 
     return () => {
       isMounted = false;
-      document.removeEventListener("visibilitychange", onVisible);
+      document.removeEventListener("visibilitychange", reviveDeadHubs);
+      window.removeEventListener("online", reviveDeadHubs);
+      retryHandles.forEach(clearTimeout);
+      retryHandles.clear();
 
       const chat = chatRef.current;
       const notif = notifRef.current;

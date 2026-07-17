@@ -47,9 +47,16 @@ async function requestAccessTokenRefresh(): Promise<string | null> {
       authExpired = false;
       setAccessToken(newToken);
       return newToken;
-    } catch {
-      authExpired = true;
-      clearAccessToken();
+    } catch (error) {
+      // Skilj på "servern nekade" (sessionen är verkligen död) och transienta
+      // nätverksfel — en mobil som precis låsts upp har inte nätet uppe ännu.
+      // Bara ett faktiskt avvisande från servern ska döda sessionen; annars
+      // får nästa försök (t.ex. SignalR-återanslutningen) prova igen.
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      if (status === 401 || status === 403) {
+        authExpired = true;
+        clearAccessToken();
+      }
       return null;
     } finally {
       refreshRequestPromise = null;
@@ -137,20 +144,33 @@ api.interceptors.response.use(
 
     try {
       const newToken = await requestAccessTokenRefresh();
-      if (!newToken) {
-        throw new Error("Session expired. Please log in again.");
+
+      if (newToken) {
+        isRefreshing = false;
+
+        // Notify all queued requests
+        onAccessTokenRefreshed(newToken);
+
+        // Retry the original request with the new token
+        if (originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        }
+        return api(originalRequest);
       }
 
       isRefreshing = false;
 
-      // Notify all queued requests
-      onAccessTokenRefreshed(newToken);
-
-      // Retry the original request with the new token
-      if (originalRequest.headers) {
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+      // Refreshen misslyckades. Logga bara ut om servern faktiskt nekade
+      // (authExpired sätts i requestAccessTokenRefresh vid 401/403). Vid
+      // transienta nätverksfel får anropen misslyckas — sessionen överlever
+      // och nästa 401 triggar ett nytt refresh-försök.
+      if (authExpired) {
+        clearAccessToken();
+        notifyAuthExpired();
       }
-      return api(originalRequest);
+
+      processFailedQueue(new Error("Session expired. Please log in again."));
+      return Promise.reject(error);
     } catch (refreshError) {
       isRefreshing = false;
 
