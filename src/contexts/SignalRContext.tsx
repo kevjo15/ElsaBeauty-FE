@@ -4,13 +4,33 @@ import {
   HubConnectionBuilder,
   HubConnectionState,
   ILogger,
+  IRetryPolicy,
   LogLevel,
 } from "@microsoft/signalr";
 import { useAuth } from "@/services/api/authContext";
-import { getAccessToken } from "@/services/api/tokenStore";
+import { getAccessToken, isTokenExpired } from "@/services/api/tokenStore";
+import { refreshAccessToken } from "@/services/api/apiService";
 import { CHAT_HUB_URL, NOTIFICATION_HUB_URL } from "@/services/api/apiUrl";
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "reconnecting";
+
+// SignalR anropar fabriken vid varje (åter)anslutningsförsök. Efter en längre
+// paus (t.ex. låst mobil) har access-tokenen gått ut — utan förnyelse nekas
+// alla återanslutningsförsök med 401. Förnya via samma single-flight-refresh
+// som axios-interceptorn använder (HttpOnly-cookien gör jobbet).
+async function freshAccessToken(): Promise<string> {
+  if (!isTokenExpired()) return getAccessToken() ?? "";
+  return (await refreshAccessToken()) ?? "";
+}
+
+// Ge aldrig upp återanslutningen (default är 4 försök under ~30 s, sedan död
+// hubb tills sidan laddas om). Backa upp till 30 s mellan försöken och fortsätt
+// tills det lyckas — eller tills utloggning stoppar hubben.
+const RETRY_DELAYS_MS = [0, 2000, 5000, 10000, 30000];
+const infiniteRetryPolicy: IRetryPolicy = {
+  nextRetryDelayInMilliseconds: ({ previousRetryCount }) =>
+    RETRY_DELAYS_MS[Math.min(previousRetryCount, RETRY_DELAYS_MS.length - 1)],
+};
 
 // Suppresses React StrictMode double-mount noise ("stopped during negotiation").
 // The second mount succeeds — this is only cosmetic noise from development mode.
@@ -63,10 +83,10 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
 
       const connection = new HubConnectionBuilder()
         .withUrl(url, {
-          accessTokenFactory: () => getAccessToken() ?? "",
+          accessTokenFactory: freshAccessToken,
           withCredentials: true,
         })
-        .withAutomaticReconnect()
+        .withAutomaticReconnect(infiniteRetryPolicy)
         .configureLogging(hubLogger)
         .build();
 

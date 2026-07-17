@@ -182,13 +182,20 @@ export function useNotifications(userId: string | undefined): UseNotificationsRe
   }, [userId, loadFromApi]);
 
   // ── Refetch after reconnect (not on initial connect) ─────────────────────────
+  // Hubben spelar inte upp missade notiser: hämta om från API:et varje gång
+  // anslutningen kommer tillbaka — även efter en helt död hubb som startats om
+  // (då är övergången connecting→connected, inte reconnecting→connected).
   const prevStatusRef = useRef<ConnectionStatus>("disconnected");
+  const hasConnectedOnceRef = useRef(false);
   useEffect(() => {
     const prev = prevStatusRef.current;
     prevStatusRef.current = notificationStatus;
-    if (notificationStatus === "connected" && prev === "reconnecting") {
-      void loadFromApi();
+    if (notificationStatus !== "connected" || prev === "connected") return;
+    if (!hasConnectedOnceRef.current) {
+      hasConnectedOnceRef.current = true; // Första anslutningen — initial load täcker.
+      return;
     }
+    void loadFromApi();
   }, [notificationStatus, loadFromApi]);
 
   // ── React when a conversation is marked as read ───────────────────────────────
